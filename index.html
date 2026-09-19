@@ -14,6 +14,7 @@
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-4 font-sans antialiased text-slate-800">
 
+  <!-- En-tête -->
   <header class="w-full max-w-md flex justify-between items-center py-4 mb-2">
     <div class="flex items-center gap-2">
       <span class="text-2xl font-black tracking-tight text-slate-900">TAP<span class="text-blue-600">CARD</span></span>
@@ -23,7 +24,7 @@
   </header>
 
   <main id="root" class="w-full max-w-md flex flex-col items-center">
-    <!-- Contenu dynamique -->
+    <!-- Le contenu dynamique se charge ici -->
   </main>
 
   <footer class="mt-8 text-xs text-slate-400">
@@ -31,6 +32,7 @@
   </footer>
 
   <script>
+    // Configuration Supabase
     const API_URL = "https://diebuttlhhxgqomxvmcj.supabase.co/rest/v1/cards";
     const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZWJ1dHRsaGh4Z3FvbXh2bWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NTA5MTYsImV4cCI6MjEwNTQyNjkxNn0.0-jqP2GKpswYCFQD6dpPznXYUXoX3pk6fWYSkiuvo2w";
 
@@ -66,7 +68,7 @@
       URL.revokeObjectURL(url);
     }
 
-    // VUE DU PROFIL PUBLIC
+    // 1. VUE DU PROFIL PUBLIC
     async function renderProfile(slug) {
       const root = document.getElementById("root");
       root.innerHTML = `<div class="p-8 bg-white rounded-2xl shadow text-center text-slate-500">Chargement du profil...</div>`;
@@ -81,8 +83,8 @@
           root.innerHTML = `
             <div class="bg-white p-6 rounded-2xl text-center shadow-sm w-full">
               <p class="text-red-500 font-semibold mb-2">Profil introuvable</p>
-              <p class="text-sm text-slate-500 mb-4">L'identifiant "${slug}" n'existe pas encore.</p>
-              <a href="/" class="text-blue-600 text-sm font-medium hover:underline">Créer cette fiche</a>
+              <p class="text-sm text-slate-500 mb-4">L'identifiant "${slug}" n'a pas encore été créé.</p>
+              <a href="/" class="text-blue-600 text-sm font-medium hover:underline">Créer cette carte</a>
             </div>
           `;
           return;
@@ -102,8 +104,10 @@
 
         root.innerHTML = `
           <div class="phone-mockup w-full bg-white rounded-[40px] overflow-hidden border border-slate-200">
+            <!-- Dynamic Island -->
             <div class="bg-slate-900 w-28 h-6 rounded-full mx-auto mt-3 mb-1"></div>
 
+            <!-- Dégradé et Avatar -->
             <div class="bg-gradient-to-b ${palette.bgGradient} pt-6 pb-6 px-6 text-center">
               <div class="w-24 h-24 mx-auto rounded-full bg-slate-900 text-white flex items-center justify-center text-3xl font-bold border-4 border-white shadow-md">
                 ${initial}
@@ -118,10 +122,12 @@
             </div>
 
             <div class="p-6 space-y-4">
+              <!-- Bouton vCard -->
               <button id="vcard-btn" class="w-full ${palette.btn} text-white font-semibold py-3.5 px-4 rounded-2xl shadow-lg transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-address-card"></i> Enregistrer le contact
               </button>
 
+              <!-- Pilules de raccourcis réseaux -->
               <div class="grid grid-cols-2 gap-2 pt-1">
                 ${links.whatsapp ? `
                   <a href="https://wa.me/${links.whatsapp.replace(/[^0-9]/g, '')}" target="_blank" class="flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-50 text-emerald-700 font-semibold text-sm rounded-xl hover:bg-emerald-100 transition border border-emerald-100">
@@ -145,6 +151,7 @@
                 ` : ''}
               </div>
 
+              <!-- Coordonnées détaillées -->
               <div class="space-y-2 pt-2">
                 ${c.phone ? `
                   <a href="tel:${c.phone}" class="flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl hover:bg-slate-100 transition border border-slate-100">
@@ -181,7 +188,7 @@
       }
     }
 
-    // VUE CRÉATION / MODIFICATION
+    // 2. VUE FORMULAIRE (CRÉATION OU MODIFICATION)
     async function renderForm(editSlug = null) {
       const root = document.getElementById("root");
       let currentData = { slug: "", full_name: "", job_title: "", company: "", phone: "", links: {}, accent_color: "blue" };
@@ -220,7 +227,7 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Poste</label>
-                <input type="text" id="job_title" value="${currentData.job_title || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Gestionnaire">
+                <input type="text" id="job_title" value="${currentData.job_title || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Directeur Commercial">
               </div>
               <div>
                 <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Entreprise</label>

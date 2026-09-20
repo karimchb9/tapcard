@@ -6,16 +6,11 @@
   <title>TAPCARD • Cartes Connectées NFC</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    .phone-mockup {
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 10px #1e293b, 0 0 0 12px #334155;
-    }
-  </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 font-sans antialiased text-slate-800">
 
   <!-- En-tête -->
-  <header class="w-full max-w-lg flex justify-between items-center py-4 mb-2">
+  <header class="w-full max-w-md flex justify-between items-center py-4 mb-2">
     <a href="/" class="flex items-center gap-2">
       <span class="text-2xl font-black tracking-tight text-slate-900">TAP<span class="text-blue-600">CARD</span></span>
       <i class="fa-solid fa-wifi rotate-90 text-blue-600 text-sm"></i>
@@ -23,7 +18,7 @@
     <div id="nav-actions"></div>
   </header>
 
-  <main id="root" class="w-full max-w-lg flex flex-col items-center">
+  <main id="root" class="w-full max-w-md flex flex-col items-center">
     <!-- Contenu dynamique généré en JS -->
   </main>
 
@@ -58,7 +53,7 @@
       return p.get(key) || null;
     }
 
-    // Compression d'image vers Base64 pour stocker proprement dans la base
+    // Compression d'image vers Base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -68,31 +63,27 @@
       });
     }
 
-    // Génération vCard
-    function generateVCard(data) {
-      const phones = Array.isArray(data.phones) ? data.phones : (data.phone ? [{ type: "Mobile", number: data.phone }] : []);
-      let telLines = phones.map(p => `TEL;TYPE=${p.type || 'VOICE'}:${p.number}`).join("\n");
+    // Ouverture directe de la fiche contact du smartphone
+    function saveContactDirect(data) {
+      const phones = Array.isArray(data.phones) ? data.phones : (data.phone ? [{ type: "CELL", number: data.phone }] : []);
+      let telEntries = phones.map(p => `TEL;TYPE=CELL:${p.number}`).join("\r\n");
 
-      const vcard = [
+      const vcardContent = [
         "BEGIN:VCARD",
         "VERSION:3.0",
-        `FN:${data.full_name || ''}`,
-        `ORG:${data.company || ''}`,
-        `TITLE:${data.job_title || ''}`,
-        telLines,
+        `FN;CHARSET=UTF-8:${data.full_name || ''}`,
+        `N;CHARSET=UTF-8:${data.full_name || ''};;;`,
+        `ORG;CHARSET=UTF-8:${data.company || ''}`,
+        `TITLE;CHARSET=UTF-8:${data.job_title || ''}`,
+        telEntries,
         "END:VCARD"
-      ].filter(Boolean).join("\n");
+      ].filter(Boolean).join("\r\n");
 
-      const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${data.slug || 'contact'}.vcf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const uri = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcardContent);
+      window.location.href = uri;
     }
 
-    // Module d'écriture Web NFC
+    // Module d'écriture Web NFC (réservé au panneau de contrôle)
     async function writeNfcTag(customUrl = null) {
       const targetUrl = customUrl || window.location.href;
       const statusEl = document.getElementById("nfc-live-status");
@@ -116,7 +107,7 @@
     }
 
     // ==========================================
-    // 1. VUE DU PROFIL PUBLIC FAÇON SMARTPHONE
+    // 1. VUE DU PROFIL PUBLIC
     // ==========================================
     async function renderProfile(slug) {
       const root = document.getElementById("root");
@@ -155,24 +146,28 @@
         `;
 
         root.innerHTML = `
-          <div class="phone-mockup w-full bg-white rounded-[44px] overflow-hidden border border-slate-200 shadow-2xl">
+          <div class="w-full bg-white rounded-[36px] overflow-hidden border border-slate-200 shadow-xl">
             
-            <!-- Dynamic Island -->
-            <div class="bg-slate-900 w-28 h-6 rounded-full mx-auto mt-3 mb-1"></div>
-
-            <!-- Bannière supérieure (Image ou Dégradé) -->
-            <div class="relative w-full h-36 ${bannerImg ? 'bg-slate-200' : 'bg-gradient-to-r from-slate-800 to-slate-900'} overflow-hidden">
-              ${bannerImg ? `<img src="${bannerImg}" class="w-full h-full object-cover">` : ''}
+            <!-- Bannière supérieure (Sans aucune encoche noire) -->
+            <div class="relative w-full h-44 bg-slate-100 overflow-visible">
+              ${bannerImg 
+                ? `<img src="${bannerImg}" class="w-full h-full object-cover">` 
+                : `<div class="w-full h-full bg-gradient-to-r from-slate-700 to-slate-900"></div>`}
               
-              <!-- Avatar Circulaire Centré superposé -->
-              <div class="absolute -bottom-10 left-1/2 -translate-x-1/2">
-                <div class="w-24 h-24 rounded-full bg-white border-4 border-white shadow-lg overflow-hidden flex items-center justify-center bg-slate-100">
-                  ${avatarImg ? `<img src="${avatarImg}" class="w-full h-full object-cover">` : `<span class="text-3xl font-black text-slate-800">${initial}</span>`}
+              <!-- Avatar circulaire parfaitement positionné à cheval sur la bannière -->
+              <div class="absolute -bottom-12 left-1/2 -translate-x-1/2 z-10">
+                <div class="w-24 h-24 rounded-full bg-white p-1 shadow-lg">
+                  <div class="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-slate-100">
+                    ${avatarImg 
+                      ? `<img src="${avatarImg}" class="w-full h-full object-cover">` 
+                      : `<span class="text-3xl font-black text-slate-700">${initial}</span>`}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div class="pt-14 pb-6 px-6 text-center">
+            <!-- Contenu de la fiche -->
+            <div class="pt-16 pb-6 px-6 text-center">
               <h1 class="text-xl font-black text-slate-900 tracking-tight">${c.full_name || ''}</h1>
               <p class="text-sm font-semibold text-slate-500 mt-0.5">${c.job_title || ''}</p>
               ${c.company ? `
@@ -181,8 +176,8 @@
                 </div>
               ` : ''}
 
-              <!-- Bouton principal : Enregistrer le contact -->
-              <button id="vcard-btn" class="w-full ${palette.btn} text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition mt-5 flex items-center justify-center gap-2">
+              <!-- Bouton principal : Enregistrement direct dans les contacts -->
+              <button id="save-contact-btn" class="w-full ${palette.btn} text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition mt-5 flex items-center justify-center gap-2">
                 <i class="fa-solid fa-address-card"></i> Enregistrer le contact
               </button>
 
@@ -235,20 +230,11 @@
                 </div>
               ` : ''}
 
-              <!-- Section constante pour écrire sur une carte NFC -->
-              <div class="mt-8 pt-5 border-t border-slate-100">
-                <button type="button" id="write-nfc-direct" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition">
-                  <i class="fa-solid fa-wifi rotate-90"></i> Écrire ce profil sur une carte NFC
-                </button>
-                <div id="nfc-live-status" class="mt-2 text-xs text-center"></div>
-              </div>
-
             </div>
           </div>
         `;
 
-        document.getElementById("vcard-btn").onclick = () => generateVCard({ ...c, phones });
-        document.getElementById("write-nfc-direct").onclick = () => writeNfcTag(window.location.href);
+        document.getElementById("save-contact-btn").onclick = () => saveContactDirect({ ...c, phones });
 
       } catch (e) {
         root.innerHTML = `<div class="p-6 bg-red-50 text-red-600 rounded-2xl">Erreur : ${e.message}</div>`;
@@ -256,7 +242,7 @@
     }
 
     // ====================================================
-    // 2. VUE FORMULAIRE DE CRÉATION & MODIFICATION AVANCÉE
+    // 2. VUE FORMULAIRE (CRÉATION ET MODIFICATION)
     // ====================================================
     async function renderForm(editSlug = null) {
       const root = document.getElementById("root");
@@ -304,13 +290,13 @@
             <p class="text-xs text-slate-500 mt-1">Personnalisez votre identité connectée et programmez votre carte NFC.</p>
           </div>
 
-          <!-- Section permanente Écriture NFC -->
+          <!-- Section permanente Écriture NFC dans le formulaire -->
           <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 rounded-2xl mb-6">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-black uppercase text-emerald-900 tracking-wider"><i class="fa-solid fa-wifi rotate-90 mr-1 text-emerald-600"></i> Module NFC</span>
+              <span class="text-xs font-black uppercase text-emerald-900 tracking-wider"><i class="fa-solid fa-wifi rotate-90 mr-1 text-emerald-600"></i> Module d'encodage NFC</span>
               <span class="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Actif</span>
             </div>
-            <p class="text-xs text-emerald-800 mb-3">Approchez votre carte du téléphone pour graver le lien instantanément.</p>
+            <p class="text-xs text-emerald-800 mb-3">Approchez votre carte NFC de votre téléphone pour y graver l'adresse de ce profil.</p>
             <button type="button" id="btn-nfc-standalone" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition">
               <i class="fa-solid fa-bolt"></i> Écrire l'URL sur une carte NFC
             </button>
@@ -321,26 +307,23 @@
 
           <form id="mainCardForm" class="space-y-5">
 
-            <!-- Identifiant Unique -->
             <div>
               <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Identifiant URL unique (slug)</label>
-              <input type="text" id="slug" value="${currentData.slug}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:border-blue-500" placeholder="ex: karim" required>
+              <input type="text" id="slug" value="${currentData.slug}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:border-blue-500" placeholder="ex: abdoulah-baha" required>
             </div>
 
-            <!-- Zone d'import des deux images -->
+            <!-- Import des deux images -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
-              <span class="text-xs font-black text-slate-500 uppercase tracking-wider block">Images (Bannière & Photo/Logo)</span>
+              <span class="text-xs font-black text-slate-500 uppercase tracking-wider block">Images</span>
               
-              <!-- Image Bannière -->
               <div>
                 <label class="text-xs font-semibold text-slate-600 block mb-1">1. Image de couverture (Bannière du haut)</label>
                 <input type="file" id="banner-input" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                <div id="banner-preview" class="mt-2 h-16 w-full rounded-xl overflow-hidden border border-slate-200 ${currentData.banner ? '' : 'hidden'}">
+                <div id="banner-preview" class="mt-2 h-20 w-full rounded-xl overflow-hidden border border-slate-200 ${currentData.banner ? '' : 'hidden'}">
                   <img src="${currentData.banner}" class="w-full h-full object-cover">
                 </div>
               </div>
 
-              <!-- Image Avatar / Logo -->
               <div>
                 <label class="text-xs font-semibold text-slate-600 block mb-1">2. Photo de profil ou Logo (Cercle)</label>
                 <input type="file" id="avatar-input" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
@@ -350,24 +333,23 @@
               </div>
             </div>
 
-            <!-- Coordonnées Générales -->
             <div>
               <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Nom complet</label>
-              <input type="text" id="full_name" value="${currentData.full_name}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Karim" required>
+              <input type="text" id="full_name" value="${currentData.full_name}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Abdoulah Baha" required>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Poste / Fonction</label>
-                <input type="text" id="job_title" value="${currentData.job_title}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Directeur Commercial">
+                <input type="text" id="job_title" value="${currentData.job_title}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Propriétaire">
               </div>
               <div>
                 <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Entreprise</label>
-                <input type="text" id="company" value="${currentData.company}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Atlas Tech">
+                <input type="text" id="company" value="${currentData.company}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: DEC">
               </div>
             </div>
 
-            <!-- Gestion dynamique des numéros de téléphone -->
+            <!-- Numéros de téléphone dynamiques -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Numéros de téléphone</span>
@@ -378,7 +360,7 @@
               <div id="phones-container" class="space-y-2"></div>
             </div>
 
-            <!-- Gestion dynamique des réseaux sociaux et liens -->
+            <!-- Liens et réseaux sociaux dynamiques -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Réseaux sociaux & Liens</span>
@@ -411,7 +393,6 @@
       let bannerBase64 = currentData.banner || "";
       let avatarBase64 = currentData.avatar || "";
 
-      // Gestion des sélecteurs de couleur
       const colorBtns = document.querySelectorAll("#palette-selector button");
       colorBtns.forEach(btn => {
         btn.onclick = () => {
@@ -421,7 +402,6 @@
         };
       });
 
-      // Gestion de l'upload des images
       const bannerInput = document.getElementById("banner-input");
       const avatarInput = document.getElementById("avatar-input");
 
@@ -445,13 +425,12 @@
         }
       };
 
-      // Gestion des téléphones dynamiques
       const phonesContainer = document.getElementById("phones-container");
       function addPhoneRow(type = "WhatsApp", number = "") {
         const div = document.createElement("div");
         div.className = "flex items-center gap-2 phone-row";
         div.innerHTML = `
-          <input type="text" value="${type}" class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Nom (ex: Pro, WhatsApp)">
+          <input type="text" value="${type}" class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Nom">
           <input type="tel" value="${number}" class="w-2/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="+2126...">
           <button type="button" class="text-slate-400 hover:text-red-500 px-2 py-1" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash text-xs"></i></button>
         `;
@@ -461,7 +440,6 @@
       currentData.phones.forEach(p => addPhoneRow(p.type, p.number));
       document.getElementById("add-phone-btn").onclick = () => addPhoneRow("Téléphone", "");
 
-      // Gestion des liens dynamiques
       const linksContainer = document.getElementById("links-container");
       function addLinkRow(platform = "instagram", url = "", customName = "") {
         const div = document.createElement("div");
@@ -479,20 +457,17 @@
       currentData.custom_links.forEach(l => addLinkRow(l.platform, l.url, l.customName));
       document.getElementById("add-link-btn").onclick = () => addLinkRow("instagram", "");
 
-      // Bouton NFC permanent dans le studio
       document.getElementById("btn-nfc-standalone").onclick = () => {
         const slug = document.getElementById("slug").value.trim().toLowerCase();
         const writeUrl = slug ? `${window.location.origin}/?c=${slug}` : window.location.href;
         writeNfcTag(writeUrl);
       };
 
-      // Soumission du formulaire
       document.getElementById("mainCardForm").onsubmit = async (e) => {
         e.preventDefault();
         const slug = document.getElementById("slug").value.trim().toLowerCase();
         const status = document.getElementById("status-box");
 
-        // Récolte des téléphones
         const collectedPhones = [];
         document.querySelectorAll(".phone-row").forEach(row => {
           const inputs = row.querySelectorAll("input");
@@ -501,7 +476,6 @@
           if (number) collectedPhones.push({ type, number });
         });
 
-        // Récolte des liens sociaux
         const collectedLinks = [];
         document.querySelectorAll(".link-row").forEach(row => {
           const select = row.querySelector("select");

@@ -24,7 +24,7 @@
   </header>
 
   <main id="root" class="w-full max-w-md flex flex-col items-center">
-    <!-- Le contenu dynamique se charge ici -->
+    <!-- Contenu dynamique -->
   </main>
 
   <footer class="mt-8 text-xs text-slate-400">
@@ -32,7 +32,7 @@
   </footer>
 
   <script>
-    // Configuration Supabase
+    // Configuration Supabase REST
     const API_URL = "https://diebuttlhhxgqomxvmcj.supabase.co/rest/v1/cards";
     const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZWJ1dHRsaGh4Z3FvbXh2bWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NTA5MTYsImV4cCI6MjEwNTQyNjkxNn0.0-jqP2GKpswYCFQD6dpPznXYUXoX3pk6fWYSkiuvo2w";
 
@@ -68,7 +68,32 @@
       URL.revokeObjectURL(url);
     }
 
-    // 1. VUE DU PROFIL PUBLIC
+    // Fonction d'écriture Web NFC
+    async function writeNfcUrl(targetUrl, feedbackElementId) {
+      const fb = document.getElementById(feedbackElementId);
+      if (!('NDEFReader' in window)) {
+        fb.innerHTML = `
+          <div class="mt-2 text-xs bg-amber-50 text-amber-800 p-2.5 rounded-xl border border-amber-200">
+            ⚠️ <b>Web NFC non supporté sur ce navigateur.</b><br>
+            Sur Android, utilisez Chrome. Sur iPhone ou PC, copiez simplement le lien et programmez la carte avec l'application gratuite <b>NFC Tools</b>.
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        fb.innerHTML = `<div class="mt-2 text-xs text-blue-600 font-semibold animate-pulse">📡 Approchez votre carte NFC du dos de votre téléphone...</div>`;
+        const ndef = new NDEFReader();
+        await ndef.write({
+          records: [{ recordType: "url", data: targetUrl }]
+        });
+        fb.innerHTML = `<div class="mt-2 text-xs text-emerald-700 font-bold">✅ Carte NFC programmée avec succès !</div>`;
+      } catch (err) {
+        fb.innerHTML = `<div class="mt-2 text-xs text-red-600">❌ Échec d'écriture : ${err.message}</div>`;
+      }
+    }
+
+    // 1. VUE DU PROFIL PUBLIC FAÇON SMARTPHONE (IMAGE 1)
     async function renderProfile(slug) {
       const root = document.getElementById("root");
       root.innerHTML = `<div class="p-8 bg-white rounded-2xl shadow text-center text-slate-500">Chargement du profil...</div>`;
@@ -97,8 +122,8 @@
         const initial = c.full_name ? c.full_name.trim().charAt(0).toUpperCase() : 'T';
 
         document.getElementById("nav-actions").innerHTML = `
-          <a href="/?edit=${c.slug}" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-full text-slate-600 font-medium hover:bg-slate-50">
-            <i class="fa-solid fa-pen mr-1"></i> Modifier
+          <a href="/?edit=${c.slug}" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-full text-slate-600 font-medium hover:bg-slate-50 flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-pen text-slate-400"></i> Modifier
           </a>
         `;
 
@@ -122,7 +147,7 @@
             </div>
 
             <div class="p-6 space-y-4">
-              <!-- Bouton vCard -->
+              <!-- Bouton Télécharger vCard -->
               <button id="vcard-btn" class="w-full ${palette.btn} text-white font-semibold py-3.5 px-4 rounded-2xl shadow-lg transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-address-card"></i> Enregistrer le contact
               </button>
@@ -151,7 +176,7 @@
                 ` : ''}
               </div>
 
-              <!-- Coordonnées détaillées -->
+              <!-- Coordonnées détaillées en cartes -->
               <div class="space-y-2 pt-2">
                 ${c.phone ? `
                   <a href="tel:${c.phone}" class="flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl hover:bg-slate-100 transition border border-slate-100">
@@ -163,6 +188,18 @@
                       <div class="text-sm font-semibold text-slate-800">${c.phone}</div>
                     </div>
                   </a>
+                ` : ''}
+
+                ${links.instagram ? `
+                  <div class="flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-pink-600 shadow-sm">
+                      <i class="fa-brands fa-instagram"></i>
+                    </div>
+                    <div>
+                      <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Instagram</div>
+                      <div class="text-sm font-semibold text-slate-800">${links.instagram}</div>
+                    </div>
+                  </div>
                 ` : ''}
 
                 ${links.website ? `
@@ -177,18 +214,28 @@
                   </a>
                 ` : ''}
               </div>
+
+              <!-- Option programmation NFC directe sur le profil -->
+              <div class="pt-4 border-t border-slate-100">
+                <button id="profile-nfc-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow">
+                  <i class="fa-solid fa-wifi rotate-90"></i> Écrire ce profil sur une carte NFC
+                </button>
+                <div id="profile-nfc-status" class="text-center"></div>
+              </div>
             </div>
           </div>
         `;
 
         document.getElementById("vcard-btn").onclick = () => generateVCard(c);
+        const currentUrl = `${window.location.origin}/?c=${c.slug}`;
+        document.getElementById("profile-nfc-btn").onclick = () => writeNfcUrl(currentUrl, "profile-nfc-status");
 
       } catch (e) {
         root.innerHTML = `<div class="p-6 bg-red-50 text-red-600 rounded-2xl">Erreur de chargement: ${e.message}</div>`;
       }
     }
 
-    // 2. VUE FORMULAIRE (CRÉATION OU MODIFICATION)
+    // 2. VUE FORMULAIRE DE CRÉATION ET MODIFICATION (IMAGE 2)
     async function renderForm(editSlug = null) {
       const root = document.getElementById("root");
       let currentData = { slug: "", full_name: "", job_title: "", company: "", phone: "", links: {}, accent_color: "blue" };
@@ -208,7 +255,7 @@
         <div class="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 w-full">
           <div class="mb-6">
             <h2 class="text-xl font-bold text-slate-900">${editSlug ? 'Modifier votre profil' : 'Votre profil digital, en direct'}</h2>
-            <p class="text-xs text-slate-500 mt-1">Mettez à jour vos coordonnées à distance sans avoir la carte NFC.</p>
+            <p class="text-xs text-slate-500 mt-1">Modifiez les infos — l'aperçu téléphone se met à jour comme après un tap NFC.</p>
           </div>
 
           <div id="status-box"></div>
@@ -216,12 +263,12 @@
           <form id="profileForm" class="space-y-4">
             <div>
               <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Identifiant URL (slug)</label>
-              <input type="text" id="slug" value="${currentData.slug || ''}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 font-mono" placeholder="ex: karim" required>
+              <input type="text" id="slug" value="${currentData.slug || ''}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 font-mono" placeholder="ex: amine-bennani" required>
             </div>
 
             <div>
               <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Nom complet</label>
-              <input type="text" id="full_name" value="${currentData.full_name || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Karim" required>
+              <input type="text" id="full_name" value="${currentData.full_name || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Amine Bennani" required>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
@@ -231,35 +278,41 @@
               </div>
               <div>
                 <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Entreprise</label>
-                <input type="text" id="company" value="${currentData.company || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Entreprise">
+                <input type="text" id="company" value="${currentData.company || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Atlas Tech Solutions">
               </div>
             </div>
 
             <div>
-              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Téléphone & WhatsApp</label>
-              <input type="tel" id="phone" value="${currentData.phone || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="+212600000000">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">WhatsApp / Téléphone</label>
+              <input type="tel" id="phone" value="${currentData.phone || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="+212 6 12 34 56 78">
             </div>
 
+            <!-- Liens réseaux directs où on colle simplement sans libellé -->
             <div class="pt-2 border-t border-slate-100 space-y-3">
-              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Réseaux Sociaux (collez vos liens)</span>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Liens Sociaux (collez directement)</span>
+              
               <div class="relative">
                 <i class="fa-brands fa-instagram absolute left-3 top-3.5 text-pink-500"></i>
-                <input type="text" id="insta" value="${(currentData.links && currentData.links.instagram) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-pink-500" placeholder="Lien Instagram ou @pseudo">
+                <input type="text" id="insta" value="${(currentData.links && currentData.links.instagram) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-pink-500" placeholder="@amine_bennani ou lien Instagram">
               </div>
+
               <div class="relative">
                 <i class="fa-brands fa-linkedin absolute left-3 top-3.5 text-blue-600"></i>
                 <input type="text" id="linkedin" value="${(currentData.links && currentData.links.linkedin) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Lien profil LinkedIn">
               </div>
+
               <div class="relative">
                 <i class="fa-brands fa-facebook absolute left-3 top-3.5 text-blue-700"></i>
-                <input type="text" id="facebook" value="${(currentData.links && currentData.links.facebook) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-700" placeholder="Lien page Facebook">
+                <input type="text" id="facebook" value="${(currentData.links && currentData.links.facebook) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-700" placeholder="Lien profil ou page Facebook">
               </div>
+
               <div class="relative">
                 <i class="fa-solid fa-globe absolute left-3 top-3.5 text-slate-500"></i>
-                <input type="text" id="website" value="${(currentData.links && currentData.links.website) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-700" placeholder="Site web (https://...)">
+                <input type="text" id="website" value="${(currentData.links && currentData.links.website) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-700" placeholder="Site web (ex: https://monsite.com)">
               </div>
             </div>
 
+            <!-- Pastilles Couleur d'accent (Image 2) -->
             <div class="pt-2">
               <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-2">Couleur d'accent</label>
               <div class="flex items-center gap-3" id="color-picker">
@@ -329,18 +382,30 @@
           const editUrl = `${window.location.origin}/?edit=${slug}`;
 
           status.innerHTML = `
-            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-2xl mb-4 text-xs space-y-2">
-              <div class="font-bold text-sm">✅ Profil enregistré avec succès !</div>
-              <div><b>Lien Public :</b> <a href="${publicUrl}" target="_blank" class="underline text-blue-600">${publicUrl}</a></div>
-              <div><b>Lien de modification (à conserver) :</b> <a href="${editUrl}" target="_blank" class="underline text-blue-600">${editUrl}</a></div>
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl mb-4 text-xs space-y-3">
+              <div class="font-bold text-sm text-emerald-800">✅ Profil enregistré avec succès !</div>
+              <div><b>Lien Public :</b> <a href="${publicUrl}" target="_blank" class="underline text-blue-600 font-mono">${publicUrl}</a></div>
+              <div><b>Lien de modification (à conserver) :</b> <a href="${editUrl}" target="_blank" class="underline text-blue-600 font-mono">${editUrl}</a></div>
+
+              <!-- Bouton d'écriture NFC direct -->
+              <div class="pt-2 border-t border-emerald-200">
+                <button type="button" id="write-nfc-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow transition">
+                  <i class="fa-solid fa-wifi rotate-90"></i> 📲 Écrire maintenant sur la carte NFC
+                </button>
+                <div id="nfc-feedback"></div>
+              </div>
             </div>
           `;
+
+          document.getElementById("write-nfc-btn").onclick = () => writeNfcUrl(publicUrl, "nfc-feedback");
+
         } catch (err) {
           status.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-xs">❌ Sauvegarde impossible : ${err.message}</div>`;
         }
       };
     }
 
+    // Routage de l'application
     const cSlug = getParam("c");
     const editSlug = getParam("edit");
 

@@ -45,6 +45,7 @@
       facebook: { name: "Facebook", icon: "fa-brands fa-facebook", color: "text-blue-800", bg: "bg-indigo-50", border: "border-indigo-100", prefix: "https://facebook.com/" },
       tiktok: { name: "TikTok", icon: "fa-brands fa-tiktok", color: "text-slate-900", bg: "bg-slate-100", border: "border-slate-200", prefix: "https://tiktok.com/@" },
       youtube: { name: "YouTube", icon: "fa-brands fa-youtube", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", prefix: "https://youtube.com/" },
+      location: { name: "Localisation", icon: "fa-solid fa-location-dot", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-100", prefix: "" },
       website: { name: "Site Web", icon: "fa-solid fa-globe", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", prefix: "" },
       other: { name: "Autre lien", icon: "fa-solid fa-link", color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200", prefix: "" }
     };
@@ -349,10 +350,18 @@
                   <div class="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Liens & Réseaux</div>
                   ${dataLinks.map(l => {
                     const platform = PLATFORMS[l.platform] || PLATFORMS.other;
+                    const isLocation = l.platform === "location";
                     let targetUrl = l.url.trim();
                     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
                       targetUrl = (platform.prefix || 'https://') + targetUrl.replace(/^@/, '');
                     }
+
+                    // Pour la localisation : label fixe "Localisation" + description en titre
+                    const labelText = isLocation ? platform.name : (l.customName || platform.name);
+                    const mainText = isLocation
+                      ? (l.customName || "Voir sur la carte")
+                      : l.url;
+
                     return `
                       <a href="${targetUrl}" target="_blank" class="flex items-center justify-between p-3 ${platform.bg} rounded-2xl border ${platform.border} hover:opacity-90 transition">
                         <div class="flex items-center gap-3">
@@ -360,8 +369,8 @@
                             <i class="${platform.icon} text-lg"></i>
                           </div>
                           <div>
-                            <div class="text-[10px] font-bold text-slate-400 uppercase">${l.customName || platform.name}</div>
-                            <div class="text-xs font-semibold text-slate-800 truncate max-w-[200px]">${l.url}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase">${labelText}</div>
+                            <div class="text-xs font-semibold text-slate-800 truncate max-w-[200px]">${mainText}</div>
                           </div>
                         </div>
                         <i class="fa-solid fa-arrow-up-right-from-square text-xs ${platform.color} mr-2"></i>
@@ -556,6 +565,7 @@
                   <i class="fa-solid fa-plus mr-1"></i> Ajouter un lien
                 </button>
               </div>
+              <p class="text-[10px] text-slate-400 mb-2">💡 Choisissez « Localisation » pour afficher votre adresse sur la carte. La description s'affichera en titre du lien.</p>
               <div id="links-container" class="space-y-2"></div>
             </div>
 
@@ -630,18 +640,21 @@
       const linksContainer = document.getElementById("links-container");
       function addLinkRow(platform = "instagram", url = "", customName = "") {
         const div = document.createElement("div");
-        div.className = "flex items-center gap-2 link-row";
+        div.className = "flex flex-col gap-2 link-row p-2 bg-white rounded-xl border border-slate-200";
         div.innerHTML = `
-          <select class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold">
-            ${Object.keys(PLATFORMS).map(k => `<option value="${k}" ${k === platform ? 'selected' : ''}>${PLATFORMS[k].name}</option>`).join('')}
-          </select>
-          <input type="text" value="${url}" class="w-2/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Coller le lien ou @pseudo">
-          <button type="button" class="text-slate-400 hover:text-red-500 px-2 py-1" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash text-xs"></i></button>
+          <div class="flex items-center gap-2">
+            <select class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold">
+              ${Object.keys(PLATFORMS).map(k => `<option value="${k}" ${k === platform ? 'selected' : ''}>${PLATFORMS[k].name}</option>`).join('')}
+            </select>
+            <input type="text" value="${url}" class="link-url flex-1 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Lien ou @pseudo">
+            <button type="button" class="text-slate-400 hover:text-red-500 px-2 py-1" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-trash text-xs"></i></button>
+          </div>
+          <input type="text" value="${customName}" class="link-desc w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Description (ex: Notre bureau à Casablanca)">
         `;
         linksContainer.appendChild(div);
       }
 
-      currentData.custom_links.forEach(l => addLinkRow(l.platform, l.url, l.customName));
+      currentData.custom_links.forEach(l => addLinkRow(l.platform, l.url, l.customName || ""));
       document.getElementById("add-link-btn").onclick = () => addLinkRow("instagram", "");
 
       document.getElementById("btn-nfc-standalone").onclick = () => {
@@ -665,11 +678,10 @@
 
         const collectedLinks = [];
         document.querySelectorAll(".link-row").forEach(row => {
-          const select = row.querySelector("select");
-          const input = row.querySelector("input");
-          const platform = select.value;
-          const url = input.value.trim();
-          if (url) collectedLinks.push({ platform, url });
+          const platform = row.querySelector("select").value;
+          const url = row.querySelector(".link-url").value.trim();
+          const customName = row.querySelector(".link-desc").value.trim();
+          if (url) collectedLinks.push({ platform, url, customName });
         });
 
         const payload = {

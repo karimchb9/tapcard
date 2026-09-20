@@ -8,27 +8,27 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     .phone-mockup {
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 10px #1e293b, 0 0 0 12px #334155;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 10px #1e293b, 0 0 0 12px #334155;
     }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-4 font-sans antialiased text-slate-800">
+<body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 font-sans antialiased text-slate-800">
 
   <!-- En-tête -->
-  <header class="w-full max-w-md flex justify-between items-center py-4 mb-2">
-    <div class="flex items-center gap-2">
+  <header class="w-full max-w-lg flex justify-between items-center py-4 mb-2">
+    <a href="/" class="flex items-center gap-2">
       <span class="text-2xl font-black tracking-tight text-slate-900">TAP<span class="text-blue-600">CARD</span></span>
       <i class="fa-solid fa-wifi rotate-90 text-blue-600 text-sm"></i>
-    </div>
+    </a>
     <div id="nav-actions"></div>
   </header>
 
-  <main id="root" class="w-full max-w-md flex flex-col items-center">
-    <!-- Contenu dynamique -->
+  <main id="root" class="w-full max-w-lg flex flex-col items-center">
+    <!-- Contenu dynamique généré en JS -->
   </main>
 
-  <footer class="mt-8 text-xs text-slate-400">
-    Propulsé par TAPCARD • NFC
+  <footer class="mt-8 text-xs text-slate-400 text-center">
+    Propulsé par TAPCARD • Solution NFC Universelle
   </footer>
 
   <script>
@@ -37,10 +37,20 @@
     const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZWJ1dHRsaGh4Z3FvbXh2bWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NTA5MTYsImV4cCI6MjEwNTQyNjkxNn0.0-jqP2GKpswYCFQD6dpPznXYUXoX3pk6fWYSkiuvo2w";
 
     const PALETTES = {
-      blue: { hex: "#2563eb", bgGradient: "from-blue-100 via-blue-50 to-white", btn: "bg-blue-600 hover:bg-blue-700" },
-      emerald: { hex: "#10b981", bgGradient: "from-emerald-100 via-emerald-50 to-white", btn: "bg-emerald-600 hover:bg-emerald-700" },
-      dark: { hex: "#0f172a", bgGradient: "from-slate-200 via-slate-50 to-white", btn: "bg-slate-900 hover:bg-slate-800" },
-      teal: { hex: "#0d9488", bgGradient: "from-teal-100 via-teal-50 to-white", btn: "bg-teal-600 hover:bg-teal-700" }
+      blue: { hex: "#2563eb", btn: "bg-blue-600 hover:bg-blue-700", border: "border-blue-500", text: "text-blue-600" },
+      emerald: { hex: "#10b981", btn: "bg-emerald-600 hover:bg-emerald-700", border: "border-emerald-500", text: "text-emerald-600" },
+      dark: { hex: "#0f172a", btn: "bg-slate-900 hover:bg-slate-800", border: "border-slate-800", text: "text-slate-900" },
+      teal: { hex: "#0d9488", btn: "bg-teal-600 hover:bg-teal-700", border: "border-teal-500", text: "text-teal-600" }
+    };
+
+    const PLATFORMS = {
+      instagram: { name: "Instagram", icon: "fa-brands fa-instagram", color: "text-pink-600", bg: "bg-pink-50", border: "border-pink-100", prefix: "https://instagram.com/" },
+      linkedin: { name: "LinkedIn", icon: "fa-brands fa-linkedin", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-100", prefix: "https://linkedin.com/in/" },
+      facebook: { name: "Facebook", icon: "fa-brands fa-facebook", color: "text-blue-800", bg: "bg-indigo-50", border: "border-indigo-100", prefix: "https://facebook.com/" },
+      tiktok: { name: "TikTok", icon: "fa-brands fa-tiktok", color: "text-slate-900", bg: "bg-slate-100", border: "border-slate-200", prefix: "https://tiktok.com/@" },
+      youtube: { name: "YouTube", icon: "fa-brands fa-youtube", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", prefix: "https://youtube.com/" },
+      website: { name: "Site Web", icon: "fa-solid fa-globe", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", prefix: "" },
+      other: { name: "Autre lien", icon: "fa-solid fa-link", color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200", prefix: "" }
     };
 
     function getParam(key) {
@@ -48,16 +58,30 @@
       return p.get(key) || null;
     }
 
+    // Compression d'image vers Base64 pour stocker proprement dans la base
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Génération vCard
     function generateVCard(data) {
+      const phones = Array.isArray(data.phones) ? data.phones : (data.phone ? [{ type: "Mobile", number: data.phone }] : []);
+      let telLines = phones.map(p => `TEL;TYPE=${p.type || 'VOICE'}:${p.number}`).join("\n");
+
       const vcard = [
         "BEGIN:VCARD",
         "VERSION:3.0",
         `FN:${data.full_name || ''}`,
         `ORG:${data.company || ''}`,
         `TITLE:${data.job_title || ''}`,
-        `TEL;TYPE=CELL:${data.phone || ''}`,
+        telLines,
         "END:VCARD"
-      ].join("\n");
+      ].filter(Boolean).join("\n");
 
       const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -68,35 +92,35 @@
       URL.revokeObjectURL(url);
     }
 
-    // Fonction d'écriture Web NFC
-    async function writeNfcUrl(targetUrl, feedbackElementId) {
-      const fb = document.getElementById(feedbackElementId);
+    // Module d'écriture Web NFC
+    async function writeNfcTag(customUrl = null) {
+      const targetUrl = customUrl || window.location.href;
+      const statusEl = document.getElementById("nfc-live-status");
+
       if (!('NDEFReader' in window)) {
-        fb.innerHTML = `
-          <div class="mt-2 text-xs bg-amber-50 text-amber-800 p-2.5 rounded-xl border border-amber-200">
-            ⚠️ <b>Web NFC non supporté sur ce navigateur.</b><br>
-            Sur Android, utilisez Chrome. Sur iPhone ou PC, copiez simplement le lien et programmez la carte avec l'application gratuite <b>NFC Tools</b>.
-          </div>
-        `;
+        alert("⚠️ L'écriture NFC directe depuis le navigateur nécessite Google Chrome sur un smartphone Android avec le NFC activé.\n\nSur iPhone ou PC : Copiez simplement votre lien et écrivez-le avec l'application gratuite 'NFC Tools'.");
         return;
       }
 
       try {
-        fb.innerHTML = `<div class="mt-2 text-xs text-blue-600 font-semibold animate-pulse">📡 Approchez votre carte NFC du dos de votre téléphone...</div>`;
+        if (statusEl) statusEl.innerHTML = `<span class="text-blue-600 font-semibold animate-pulse"><i class="fa-solid fa-spinner fa-spin"></i> Approchez votre carte NFC du dos de votre smartphone...</span>`;
         const ndef = new NDEFReader();
         await ndef.write({
           records: [{ recordType: "url", data: targetUrl }]
         });
-        fb.innerHTML = `<div class="mt-2 text-xs text-emerald-700 font-bold">✅ Carte NFC programmée avec succès !</div>`;
+        if (statusEl) statusEl.innerHTML = `<span class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check"></i> Carte NFC écrite avec succès !</span>`;
+        alert("✅ Succès ! Votre carte NFC est programmée pour ouvrir :\n" + targetUrl);
       } catch (err) {
-        fb.innerHTML = `<div class="mt-2 text-xs text-red-600">❌ Échec d'écriture : ${err.message}</div>`;
+        if (statusEl) statusEl.innerHTML = `<span class="text-red-600">❌ Erreur d'écriture : ${err.message}</span>`;
       }
     }
 
-    // 1. VUE DU PROFIL PUBLIC FAÇON SMARTPHONE (IMAGE 1)
+    // ==========================================
+    // 1. VUE DU PROFIL PUBLIC FAÇON SMARTPHONE
+    // ==========================================
     async function renderProfile(slug) {
       const root = document.getElementById("root");
-      root.innerHTML = `<div class="p-8 bg-white rounded-2xl shadow text-center text-slate-500">Chargement du profil...</div>`;
+      root.innerHTML = `<div class="p-8 bg-white rounded-3xl shadow-sm text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-3"></i><br>Chargement de votre carte...</div>`;
 
       try {
         const res = await fetch(`${API_URL}?slug=eq.${encodeURIComponent(slug)}&select=*`, {
@@ -106,216 +130,269 @@
 
         if (!rows || rows.length === 0) {
           root.innerHTML = `
-            <div class="bg-white p-6 rounded-2xl text-center shadow-sm w-full">
+            <div class="bg-white p-6 rounded-3xl text-center shadow-sm w-full border border-slate-200">
               <p class="text-red-500 font-semibold mb-2">Profil introuvable</p>
-              <p class="text-sm text-slate-500 mb-4">L'identifiant "${slug}" n'a pas encore été créé.</p>
-              <a href="/" class="text-blue-600 text-sm font-medium hover:underline">Créer cette carte</a>
+              <p class="text-sm text-slate-500 mb-4">L'identifiant "${slug}" n'existe pas encore.</p>
+              <a href="/" class="inline-block bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold">Créer cette carte</a>
             </div>
           `;
           return;
         }
 
         const c = rows[0];
-        const links = c.links || {};
+        const dataLinks = (c.links && c.links.custom_links) || [];
+        const phones = (c.links && c.links.phones) || (c.phone ? [{ type: "Téléphone", number: c.phone }] : []);
+        const bannerImg = c.links && c.links.banner;
+        const avatarImg = c.links && c.links.avatar;
         const colorKey = c.accent_color || "blue";
         const palette = PALETTES[colorKey] || PALETTES.blue;
         const initial = c.full_name ? c.full_name.trim().charAt(0).toUpperCase() : 'T';
 
         document.getElementById("nav-actions").innerHTML = `
-          <a href="/?edit=${c.slug}" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-full text-slate-600 font-medium hover:bg-slate-50 flex items-center gap-1.5 shadow-sm">
+          <a href="/?edit=${c.slug}" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-semibold hover:bg-slate-50 flex items-center gap-1.5 shadow-sm">
             <i class="fa-solid fa-pen text-slate-400"></i> Modifier
           </a>
         `;
 
         root.innerHTML = `
-          <div class="phone-mockup w-full bg-white rounded-[40px] overflow-hidden border border-slate-200">
+          <div class="phone-mockup w-full bg-white rounded-[44px] overflow-hidden border border-slate-200 shadow-2xl">
+            
             <!-- Dynamic Island -->
             <div class="bg-slate-900 w-28 h-6 rounded-full mx-auto mt-3 mb-1"></div>
 
-            <!-- Dégradé et Avatar -->
-            <div class="bg-gradient-to-b ${palette.bgGradient} pt-6 pb-6 px-6 text-center">
-              <div class="w-24 h-24 mx-auto rounded-full bg-slate-900 text-white flex items-center justify-center text-3xl font-bold border-4 border-white shadow-md">
-                ${initial}
+            <!-- Bannière supérieure (Image ou Dégradé) -->
+            <div class="relative w-full h-36 ${bannerImg ? 'bg-slate-200' : 'bg-gradient-to-r from-slate-800 to-slate-900'} overflow-hidden">
+              ${bannerImg ? `<img src="${bannerImg}" class="w-full h-full object-cover">` : ''}
+              
+              <!-- Avatar Circulaire Centré superposé -->
+              <div class="absolute -bottom-10 left-1/2 -translate-x-1/2">
+                <div class="w-24 h-24 rounded-full bg-white border-4 border-white shadow-lg overflow-hidden flex items-center justify-center bg-slate-100">
+                  ${avatarImg ? `<img src="${avatarImg}" class="w-full h-full object-cover">` : `<span class="text-3xl font-black text-slate-800">${initial}</span>`}
+                </div>
               </div>
-              <h1 class="text-xl font-bold text-slate-900 mt-3">${c.full_name || ''}</h1>
-              <p class="text-sm text-slate-500 font-medium">${c.job_title || ''}</p>
+            </div>
+
+            <div class="pt-14 pb-6 px-6 text-center">
+              <h1 class="text-xl font-black text-slate-900 tracking-tight">${c.full_name || ''}</h1>
+              <p class="text-sm font-semibold text-slate-500 mt-0.5">${c.job_title || ''}</p>
               ${c.company ? `
-                <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/80 backdrop-blur rounded-full text-xs font-semibold text-slate-700 mt-2 shadow-sm border border-slate-100">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-700 mt-2">
                   <i class="fa-solid fa-building text-slate-400"></i> ${c.company}
                 </div>
               ` : ''}
-            </div>
 
-            <div class="p-6 space-y-4">
-              <!-- Bouton Télécharger vCard -->
-              <button id="vcard-btn" class="w-full ${palette.btn} text-white font-semibold py-3.5 px-4 rounded-2xl shadow-lg transition flex items-center justify-center gap-2">
+              <!-- Bouton principal : Enregistrer le contact -->
+              <button id="vcard-btn" class="w-full ${palette.btn} text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition mt-5 flex items-center justify-center gap-2">
                 <i class="fa-solid fa-address-card"></i> Enregistrer le contact
               </button>
 
-              <!-- Pilules de raccourcis réseaux -->
-              <div class="grid grid-cols-2 gap-2 pt-1">
-                ${links.whatsapp ? `
-                  <a href="https://wa.me/${links.whatsapp.replace(/[^0-9]/g, '')}" target="_blank" class="flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-50 text-emerald-700 font-semibold text-sm rounded-xl hover:bg-emerald-100 transition border border-emerald-100">
-                    <i class="fa-brands fa-whatsapp text-lg"></i> WhatsApp
-                  </a>
-                ` : ''}
-                ${links.instagram ? `
-                  <a href="${links.instagram.startsWith('http') ? links.instagram : 'https://instagram.com/' + links.instagram.replace('@','')}" target="_blank" class="flex items-center justify-center gap-2 py-2.5 px-3 bg-pink-50 text-pink-600 font-semibold text-sm rounded-xl hover:bg-pink-100 transition border border-pink-100">
-                    <i class="fa-brands fa-instagram text-lg"></i> Instagram
-                  </a>
-                ` : ''}
-                ${links.linkedin ? `
-                  <a href="${links.linkedin.startsWith('http') ? links.linkedin : 'https://' + links.linkedin}" target="_blank" class="flex items-center justify-center gap-2 py-2.5 px-3 bg-blue-50 text-blue-700 font-semibold text-sm rounded-xl hover:bg-blue-100 transition border border-blue-100">
-                    <i class="fa-brands fa-linkedin text-lg"></i> LinkedIn
-                  </a>
-                ` : ''}
-                ${links.facebook ? `
-                  <a href="${links.facebook.startsWith('http') ? links.facebook : 'https://' + links.facebook}" target="_blank" class="flex items-center justify-center gap-2 py-2.5 px-3 bg-slate-100 text-slate-800 font-semibold text-sm rounded-xl hover:bg-slate-200 transition border border-slate-200">
-                    <i class="fa-brands fa-facebook text-lg"></i> Facebook
-                  </a>
-                ` : ''}
-              </div>
+              <!-- Liste des téléphones -->
+              ${phones.length > 0 ? `
+                <div class="space-y-2 mt-5 text-left">
+                  <div class="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Téléphones</div>
+                  ${phones.map(p => `
+                    <a href="tel:${p.number}" class="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-100 transition">
+                      <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-slate-600 shadow-sm border border-slate-100">
+                          <i class="fa-solid ${p.type && p.type.toLowerCase().includes('whatsapp') ? 'fa-brands fa-whatsapp text-emerald-600' : 'fa-phone'}"></i>
+                        </div>
+                        <div>
+                          <div class="text-[10px] font-bold text-slate-400 uppercase">${p.type || 'Numéro'}</div>
+                          <div class="text-sm font-semibold text-slate-800">${p.number}</div>
+                        </div>
+                      </div>
+                      <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-300 mr-2"></i>
+                    </a>
+                  `).join('')}
+                </div>
+              ` : ''}
 
-              <!-- Coordonnées détaillées en cartes -->
-              <div class="space-y-2 pt-2">
-                ${c.phone ? `
-                  <a href="tel:${c.phone}" class="flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl hover:bg-slate-100 transition border border-slate-100">
-                    <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-600 shadow-sm">
-                      <i class="fa-solid fa-phone"></i>
-                    </div>
-                    <div>
-                      <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Téléphone</div>
-                      <div class="text-sm font-semibold text-slate-800">${c.phone}</div>
-                    </div>
-                  </a>
-                ` : ''}
+              <!-- Liste des réseaux sociaux et liens -->
+              ${dataLinks.length > 0 ? `
+                <div class="space-y-2 mt-5 text-left">
+                  <div class="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Liens & Réseaux</div>
+                  ${dataLinks.map(l => {
+                    const platform = PLATFORMS[l.platform] || PLATFORMS.other;
+                    let targetUrl = l.url.trim();
+                    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+                      targetUrl = (platform.prefix || 'https://') + targetUrl.replace(/^@/, '');
+                    }
+                    return `
+                      <a href="${targetUrl}" target="_blank" class="flex items-center justify-between p-3 ${platform.bg} rounded-2xl border ${platform.border} hover:opacity-90 transition">
+                        <div class="flex items-center gap-3">
+                          <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center ${platform.color} shadow-sm">
+                            <i class="${platform.icon} text-lg"></i>
+                          </div>
+                          <div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase">${l.customName || platform.name}</div>
+                            <div class="text-xs font-semibold text-slate-800 truncate max-w-[200px]">${l.url}</div>
+                          </div>
+                        </div>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs ${platform.color} mr-2"></i>
+                      </a>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
 
-                ${links.instagram ? `
-                  <div class="flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-pink-600 shadow-sm">
-                      <i class="fa-brands fa-instagram"></i>
-                    </div>
-                    <div>
-                      <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Instagram</div>
-                      <div class="text-sm font-semibold text-slate-800">${links.instagram}</div>
-                    </div>
-                  </div>
-                ` : ''}
-
-                ${links.website ? `
-                  <a href="${links.website.startsWith('http') ? links.website : 'https://' + links.website}" target="_blank" class="flex items-center gap-3 p-3.5 bg-slate-50 rounded-2xl hover:bg-slate-100 transition border border-slate-100">
-                    <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-600 shadow-sm">
-                      <i class="fa-solid fa-globe"></i>
-                    </div>
-                    <div>
-                      <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Site Web</div>
-                      <div class="text-sm font-semibold text-slate-800 truncate">${links.website}</div>
-                    </div>
-                  </a>
-                ` : ''}
-              </div>
-
-              <!-- Option programmation NFC directe sur le profil -->
-              <div class="pt-4 border-t border-slate-100">
-                <button id="profile-nfc-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow">
+              <!-- Section constante pour écrire sur une carte NFC -->
+              <div class="mt-8 pt-5 border-t border-slate-100">
+                <button type="button" id="write-nfc-direct" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition">
                   <i class="fa-solid fa-wifi rotate-90"></i> Écrire ce profil sur une carte NFC
                 </button>
-                <div id="profile-nfc-status" class="text-center"></div>
+                <div id="nfc-live-status" class="mt-2 text-xs text-center"></div>
               </div>
+
             </div>
           </div>
         `;
 
-        document.getElementById("vcard-btn").onclick = () => generateVCard(c);
-        const currentUrl = `${window.location.origin}/?c=${c.slug}`;
-        document.getElementById("profile-nfc-btn").onclick = () => writeNfcUrl(currentUrl, "profile-nfc-status");
+        document.getElementById("vcard-btn").onclick = () => generateVCard({ ...c, phones });
+        document.getElementById("write-nfc-direct").onclick = () => writeNfcTag(window.location.href);
 
       } catch (e) {
-        root.innerHTML = `<div class="p-6 bg-red-50 text-red-600 rounded-2xl">Erreur de chargement: ${e.message}</div>`;
+        root.innerHTML = `<div class="p-6 bg-red-50 text-red-600 rounded-2xl">Erreur : ${e.message}</div>`;
       }
     }
 
-    // 2. VUE FORMULAIRE DE CRÉATION ET MODIFICATION (IMAGE 2)
+    // ====================================================
+    // 2. VUE FORMULAIRE DE CRÉATION & MODIFICATION AVANCÉE
+    // ====================================================
     async function renderForm(editSlug = null) {
       const root = document.getElementById("root");
-      let currentData = { slug: "", full_name: "", job_title: "", company: "", phone: "", links: {}, accent_color: "blue" };
+      let currentData = { 
+        slug: "", 
+        full_name: "", 
+        job_title: "", 
+        company: "", 
+        accent_color: "blue",
+        banner: "",
+        avatar: "",
+        phones: [{ type: "WhatsApp", number: "" }],
+        custom_links: []
+      };
 
       if (editSlug) {
-        root.innerHTML = `<div class="p-8 bg-white rounded-2xl shadow text-center text-slate-500">Récupération des coordonnées...</div>`;
+        root.innerHTML = `<div class="p-8 bg-white rounded-3xl shadow-sm text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-3"></i><br>Chargement des informations...</div>`;
         try {
           const res = await fetch(`${API_URL}?slug=eq.${encodeURIComponent(editSlug)}&select=*`, {
             headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
           });
           const rows = await res.json();
-          if (rows && rows.length > 0) currentData = rows[0];
+          if (rows && rows.length > 0) {
+            const row = rows[0];
+            currentData.slug = row.slug;
+            currentData.full_name = row.full_name || "";
+            currentData.job_title = row.job_title || "";
+            currentData.company = row.company || "";
+            currentData.accent_color = row.accent_color || "blue";
+            if (row.links) {
+              currentData.banner = row.links.banner || "";
+              currentData.avatar = row.links.avatar || "";
+              currentData.phones = row.links.phones || (row.phone ? [{ type: "Téléphone", number: row.phone }] : [{ type: "WhatsApp", number: "" }]);
+              currentData.custom_links = row.links.custom_links || [];
+            }
+          }
         } catch (e) {}
       }
 
       root.innerHTML = `
-        <div class="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 w-full">
+        <div class="bg-white p-6 sm:p-8 rounded-[36px] shadow-sm border border-slate-200 w-full mb-8">
+          
           <div class="mb-6">
-            <h2 class="text-xl font-bold text-slate-900">${editSlug ? 'Modifier votre profil' : 'Votre profil digital, en direct'}</h2>
-            <p class="text-xs text-slate-500 mt-1">Modifiez les infos — l'aperçu téléphone se met à jour comme après un tap NFC.</p>
+            <h2 class="text-xl font-black text-slate-900 tracking-tight">${editSlug ? 'Modifier votre profil digital' : 'Créer votre profil digital'}</h2>
+            <p class="text-xs text-slate-500 mt-1">Personnalisez votre identité connectée et programmez votre carte NFC.</p>
+          </div>
+
+          <!-- Section permanente Écriture NFC -->
+          <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 rounded-2xl mb-6">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-black uppercase text-emerald-900 tracking-wider"><i class="fa-solid fa-wifi rotate-90 mr-1 text-emerald-600"></i> Module NFC</span>
+              <span class="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Actif</span>
+            </div>
+            <p class="text-xs text-emerald-800 mb-3">Approchez votre carte du téléphone pour graver le lien instantanément.</p>
+            <button type="button" id="btn-nfc-standalone" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition">
+              <i class="fa-solid fa-bolt"></i> Écrire l'URL sur une carte NFC
+            </button>
+            <div id="nfc-live-status" class="mt-2 text-center text-xs"></div>
           </div>
 
           <div id="status-box"></div>
 
-          <form id="profileForm" class="space-y-4">
+          <form id="mainCardForm" class="space-y-5">
+
+            <!-- Identifiant Unique -->
             <div>
-              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Identifiant URL (slug)</label>
-              <input type="text" id="slug" value="${currentData.slug || ''}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 font-mono" placeholder="ex: amine-bennani" required>
+              <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Identifiant URL unique (slug)</label>
+              <input type="text" id="slug" value="${currentData.slug}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:border-blue-500" placeholder="ex: karim" required>
             </div>
 
+            <!-- Zone d'import des deux images -->
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
+              <span class="text-xs font-black text-slate-500 uppercase tracking-wider block">Images (Bannière & Photo/Logo)</span>
+              
+              <!-- Image Bannière -->
+              <div>
+                <label class="text-xs font-semibold text-slate-600 block mb-1">1. Image de couverture (Bannière du haut)</label>
+                <input type="file" id="banner-input" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <div id="banner-preview" class="mt-2 h-16 w-full rounded-xl overflow-hidden border border-slate-200 ${currentData.banner ? '' : 'hidden'}">
+                  <img src="${currentData.banner}" class="w-full h-full object-cover">
+                </div>
+              </div>
+
+              <!-- Image Avatar / Logo -->
+              <div>
+                <label class="text-xs font-semibold text-slate-600 block mb-1">2. Photo de profil ou Logo (Cercle)</label>
+                <input type="file" id="avatar-input" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <div id="avatar-preview" class="mt-2 w-16 h-16 rounded-full overflow-hidden border-2 border-slate-200 ${currentData.avatar ? '' : 'hidden'}">
+                  <img src="${currentData.avatar}" class="w-full h-full object-cover">
+                </div>
+              </div>
+            </div>
+
+            <!-- Coordonnées Générales -->
             <div>
-              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Nom complet</label>
-              <input type="text" id="full_name" value="${currentData.full_name || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Amine Bennani" required>
+              <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Nom complet</label>
+              <input type="text" id="full_name" value="${currentData.full_name}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Karim" required>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Poste</label>
-                <input type="text" id="job_title" value="${currentData.job_title || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Directeur Commercial">
+                <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Poste / Fonction</label>
+                <input type="text" id="job_title" value="${currentData.job_title}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Directeur Commercial">
               </div>
               <div>
-                <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">Entreprise</label>
-                <input type="text" id="company" value="${currentData.company || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Atlas Tech Solutions">
+                <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Entreprise</label>
+                <input type="text" id="company" value="${currentData.company}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Atlas Tech">
               </div>
             </div>
 
+            <!-- Gestion dynamique des numéros de téléphone -->
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Numéros de téléphone</span>
+                <button type="button" id="add-phone-btn" class="text-xs font-bold text-blue-600 hover:text-blue-700">
+                  <i class="fa-solid fa-plus mr-1"></i> Ajouter un numéro
+                </button>
+              </div>
+              <div id="phones-container" class="space-y-2"></div>
+            </div>
+
+            <!-- Gestion dynamique des réseaux sociaux et liens -->
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Réseaux sociaux & Liens</span>
+                <button type="button" id="add-link-btn" class="text-xs font-bold text-blue-600 hover:text-blue-700">
+                  <i class="fa-solid fa-plus mr-1"></i> Ajouter un lien
+                </button>
+              </div>
+              <div id="links-container" class="space-y-2"></div>
+            </div>
+
+            <!-- Couleur d'accent -->
             <div>
-              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">WhatsApp / Téléphone</label>
-              <input type="tel" id="phone" value="${currentData.phone || ''}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="+212 6 12 34 56 78">
-            </div>
-
-            <!-- Liens réseaux directs où on colle simplement sans libellé -->
-            <div class="pt-2 border-t border-slate-100 space-y-3">
-              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Liens Sociaux (collez directement)</span>
-              
-              <div class="relative">
-                <i class="fa-brands fa-instagram absolute left-3 top-3.5 text-pink-500"></i>
-                <input type="text" id="insta" value="${(currentData.links && currentData.links.instagram) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-pink-500" placeholder="@amine_bennani ou lien Instagram">
-              </div>
-
-              <div class="relative">
-                <i class="fa-brands fa-linkedin absolute left-3 top-3.5 text-blue-600"></i>
-                <input type="text" id="linkedin" value="${(currentData.links && currentData.links.linkedin) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Lien profil LinkedIn">
-              </div>
-
-              <div class="relative">
-                <i class="fa-brands fa-facebook absolute left-3 top-3.5 text-blue-700"></i>
-                <input type="text" id="facebook" value="${(currentData.links && currentData.links.facebook) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-700" placeholder="Lien profil ou page Facebook">
-              </div>
-
-              <div class="relative">
-                <i class="fa-solid fa-globe absolute left-3 top-3.5 text-slate-500"></i>
-                <input type="text" id="website" value="${(currentData.links && currentData.links.website) || ''}" class="w-full p-3 pl-9 border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-700" placeholder="Site web (ex: https://monsite.com)">
-              </div>
-            </div>
-
-            <!-- Pastilles Couleur d'accent (Image 2) -->
-            <div class="pt-2">
-              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-2">Couleur d'accent</label>
-              <div class="flex items-center gap-3" id="color-picker">
+              <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">Couleur d'accent</label>
+              <div class="flex items-center gap-3" id="palette-selector">
                 <button type="button" data-color="blue" class="w-8 h-8 rounded-full bg-blue-600 ring-2 ring-offset-2 ring-blue-600"></button>
                 <button type="button" data-color="emerald" class="w-8 h-8 rounded-full bg-emerald-600"></button>
                 <button type="button" data-color="dark" class="w-8 h-8 rounded-full bg-slate-900"></button>
@@ -323,41 +400,129 @@
               </div>
             </div>
 
-            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 rounded-xl transition shadow mt-4">
-              Sauvegarder les modifications
+            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl shadow transition text-sm">
+              Enregistrer le profil digital
             </button>
           </form>
         </div>
       `;
 
       let selectedColor = currentData.accent_color || "blue";
-      const pickerButtons = document.querySelectorAll("#color-picker button");
-      pickerButtons.forEach(btn => {
+      let bannerBase64 = currentData.banner || "";
+      let avatarBase64 = currentData.avatar || "";
+
+      // Gestion des sélecteurs de couleur
+      const colorBtns = document.querySelectorAll("#palette-selector button");
+      colorBtns.forEach(btn => {
         btn.onclick = () => {
-          pickerButtons.forEach(b => b.className = b.className.replace(/ring-2 ring-offset-2 ring-\w+-600/, ''));
+          colorBtns.forEach(b => b.className = b.className.replace(/ring-2 ring-offset-2 ring-\w+-600/, ''));
           btn.classList.add("ring-2", "ring-offset-2", `ring-${btn.dataset.color === 'dark' ? 'slate-900' : btn.dataset.color + '-600'}`);
           selectedColor = btn.dataset.color;
         };
       });
 
-      document.getElementById("profileForm").onsubmit = async (e) => {
+      // Gestion de l'upload des images
+      const bannerInput = document.getElementById("banner-input");
+      const avatarInput = document.getElementById("avatar-input");
+
+      bannerInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          bannerBase64 = await fileToBase64(file);
+          const preview = document.getElementById("banner-preview");
+          preview.innerHTML = `<img src="${bannerBase64}" class="w-full h-full object-cover">`;
+          preview.classList.remove("hidden");
+        }
+      };
+
+      avatarInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          avatarBase64 = await fileToBase64(file);
+          const preview = document.getElementById("avatar-preview");
+          preview.innerHTML = `<img src="${avatarBase64}" class="w-full h-full object-cover">`;
+          preview.classList.remove("hidden");
+        }
+      };
+
+      // Gestion des téléphones dynamiques
+      const phonesContainer = document.getElementById("phones-container");
+      function addPhoneRow(type = "WhatsApp", number = "") {
+        const div = document.createElement("div");
+        div.className = "flex items-center gap-2 phone-row";
+        div.innerHTML = `
+          <input type="text" value="${type}" class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Nom (ex: Pro, WhatsApp)">
+          <input type="tel" value="${number}" class="w-2/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="+2126...">
+          <button type="button" class="text-slate-400 hover:text-red-500 px-2 py-1" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash text-xs"></i></button>
+        `;
+        phonesContainer.appendChild(div);
+      }
+
+      currentData.phones.forEach(p => addPhoneRow(p.type, p.number));
+      document.getElementById("add-phone-btn").onclick = () => addPhoneRow("Téléphone", "");
+
+      // Gestion des liens dynamiques
+      const linksContainer = document.getElementById("links-container");
+      function addLinkRow(platform = "instagram", url = "", customName = "") {
+        const div = document.createElement("div");
+        div.className = "flex items-center gap-2 link-row";
+        div.innerHTML = `
+          <select class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold">
+            ${Object.keys(PLATFORMS).map(k => `<option value="${k}" ${k === platform ? 'selected' : ''}>${PLATFORMS[k].name}</option>`).join('')}
+          </select>
+          <input type="text" value="${url}" class="w-2/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Coller le lien ou @pseudo">
+          <button type="button" class="text-slate-400 hover:text-red-500 px-2 py-1" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash text-xs"></i></button>
+        `;
+        linksContainer.appendChild(div);
+      }
+
+      currentData.custom_links.forEach(l => addLinkRow(l.platform, l.url, l.customName));
+      document.getElementById("add-link-btn").onclick = () => addLinkRow("instagram", "");
+
+      // Bouton NFC permanent dans le studio
+      document.getElementById("btn-nfc-standalone").onclick = () => {
+        const slug = document.getElementById("slug").value.trim().toLowerCase();
+        const writeUrl = slug ? `${window.location.origin}/?c=${slug}` : window.location.href;
+        writeNfcTag(writeUrl);
+      };
+
+      // Soumission du formulaire
+      document.getElementById("mainCardForm").onsubmit = async (e) => {
         e.preventDefault();
         const slug = document.getElementById("slug").value.trim().toLowerCase();
         const status = document.getElementById("status-box");
+
+        // Récolte des téléphones
+        const collectedPhones = [];
+        document.querySelectorAll(".phone-row").forEach(row => {
+          const inputs = row.querySelectorAll("input");
+          const type = inputs[0].value.trim();
+          const number = inputs[1].value.trim();
+          if (number) collectedPhones.push({ type, number });
+        });
+
+        // Récolte des liens sociaux
+        const collectedLinks = [];
+        document.querySelectorAll(".link-row").forEach(row => {
+          const select = row.querySelector("select");
+          const input = row.querySelector("input");
+          const platform = select.value;
+          const url = input.value.trim();
+          if (url) collectedLinks.push({ platform, url });
+        });
 
         const payload = {
           slug: slug,
           full_name: document.getElementById("full_name").value.trim(),
           job_title: document.getElementById("job_title").value.trim(),
           company: document.getElementById("company").value.trim(),
-          phone: document.getElementById("phone").value.trim(),
+          phone: collectedPhones[0] ? collectedPhones[0].number : "",
           accent_color: selectedColor,
           links: {
-            whatsapp: document.getElementById("phone").value.trim(),
-            instagram: document.getElementById("insta").value.trim(),
-            linkedin: document.getElementById("linkedin").value.trim(),
-            facebook: document.getElementById("facebook").value.trim(),
-            website: document.getElementById("website").value.trim()
+            banner: bannerBase64,
+            avatar: avatarBase64,
+            phones: collectedPhones,
+            custom_links: collectedLinks
           }
         };
 
@@ -382,30 +547,20 @@
           const editUrl = `${window.location.origin}/?edit=${slug}`;
 
           status.innerHTML = `
-            <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl mb-4 text-xs space-y-3">
-              <div class="font-bold text-sm text-emerald-800">✅ Profil enregistré avec succès !</div>
-              <div><b>Lien Public :</b> <a href="${publicUrl}" target="_blank" class="underline text-blue-600 font-mono">${publicUrl}</a></div>
-              <div><b>Lien de modification (à conserver) :</b> <a href="${editUrl}" target="_blank" class="underline text-blue-600 font-mono">${editUrl}</a></div>
-
-              <!-- Bouton d'écriture NFC direct -->
-              <div class="pt-2 border-t border-emerald-200">
-                <button type="button" id="write-nfc-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow transition">
-                  <i class="fa-solid fa-wifi rotate-90"></i> 📲 Écrire maintenant sur la carte NFC
-                </button>
-                <div id="nfc-feedback"></div>
-              </div>
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl mb-5 text-xs space-y-3 shadow-sm">
+              <div class="font-bold text-sm text-emerald-800"><i class="fa-solid fa-circle-check"></i> Profil enregistré avec succès !</div>
+              <div><b>Lien Public de la carte :</b> <a href="${publicUrl}" target="_blank" class="underline text-blue-600 font-mono">${publicUrl}</a></div>
+              <div><b>Lien de modification sans la carte :</b> <a href="${editUrl}" target="_blank" class="underline text-blue-600 font-mono">${editUrl}</a></div>
             </div>
           `;
-
-          document.getElementById("write-nfc-btn").onclick = () => writeNfcUrl(publicUrl, "nfc-feedback");
-
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
-          status.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-xs">❌ Sauvegarde impossible : ${err.message}</div>`;
+          status.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-xs font-semibold">❌ Échec de l'enregistrement : ${err.message}</div>`;
         }
       };
     }
 
-    // Routage de l'application
+    // Routage
     const cSlug = getParam("c");
     const editSlug = getParam("edit");
 

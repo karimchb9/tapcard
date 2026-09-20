@@ -63,50 +63,119 @@
       });
     }
 
-    // Déclencheur direct vers l'application Contacts du smartphone
+    // Petit toast d'aide
+    function showToast(msg, duration = 4000) {
+      const t = document.createElement("div");
+      t.textContent = msg;
+      t.style.cssText = `
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: #0f172a; color: white; padding: 12px 18px;
+        border-radius: 14px; font-size: 12px; z-index: 9999;
+        box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: 90vw; text-align: center;
+        font-weight: 600;
+      `;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), duration);
+    }
+
+    // ==========================================
+    // ENREGISTREMENT DU CONTACT — version corrigée
+    // ==========================================
     async function saveContactDirect(data) {
-      const phones = Array.isArray(data.phones) ? data.phones : (data.phone ? [{ type: "CELL", number: data.phone }] : []);
-      let telEntries = phones.map(p => `TEL;TYPE=CELL:${p.number}`).join("\r\n");
-
-      const vcardData = [
-        "BEGIN:VCARD",
-        "VERSION:3.0",
-        `FN;CHARSET=UTF-8:${data.full_name || ''}`,
-        `N;CHARSET=UTF-8:${data.full_name || ''};;;`,
-        `ORG;CHARSET=UTF-8:${data.company || ''}`,
-        `TITLE;CHARSET=UTF-8:${data.job_title || ''}`,
-        telEntries,
-        "END:VCARD"
-      ].filter(Boolean).join("\r\n");
-
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-      // 1. Sur iPhone : Safari ouvre directement la vue "Nouveau Contact"
-      if (isIOS) {
-        const blob = new Blob([vcardData], { type: "text/vcard;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        window.location.href = url;
-        return;
+      const btn = document.getElementById("save-contact-btn");
+      const originalHtml = btn ? btn.innerHTML : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Ouverture...`;
       }
 
-      // 2. Sur Android : Déclenchement du partage système vers Contacts
-      const file = new File([vcardData], `${data.slug || 'contact'}.vcf`, { type: "text/vcard;charset=utf-8" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: data.full_name || 'Contact'
-          });
+      try {
+        // Récupération des numéros
+        const phones = Array.isArray(data.phones)
+          ? data.phones
+          : (data.phone ? [{ type: "CELL", number: data.phone }] : []);
+
+        // Échappement vCard (caractères spéciaux)
+        const esc = (v = "") => String(v).replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
+
+        const telEntries = phones
+          .map(p => `TEL;TYPE=CELL:${esc(p.number)}`)
+          .join("\r\n");
+
+        const vcardData = [
+          "BEGIN:VCARD",
+          "VERSION:3.0",
+          `FN;CHARSET=UTF-8:${esc(data.full_name || '')}`,
+          `N;CHARSET=UTF-8:${esc(data.full_name || '')};;;;`,
+          data.company ? `ORG;CHARSET=UTF-8:${esc(data.company)}` : '',
+          data.job_title ? `TITLE;CHARSET=UTF-8:${esc(data.job_title)}` : '',
+          telEntries,
+          "END:VCARD"
+        ].filter(Boolean).join("\r\n");
+
+        const ua = navigator.userAgent;
+        const isIOS =
+          /iPad|iPhone|iPod/.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+        // ---------------------------------------------------------
+        // 1) iOS : data-URL vCard → ouvre direct la fiche "Nouveau Contact"
+        // ---------------------------------------------------------
+        if (isIOS) {
+          const dataUrl = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcardData);
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          // ⚠️ Surtout PAS d'attribut "download"
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
           return;
-        } catch (e) {
-          if (e.name === 'AbortError') return;
+        }
+
+        // ---------------------------------------------------------
+        // 2) Android & Desktop : Web Share API → feuille native
+        //    (Contacts / Gmail / WhatsApp / Drive…)
+        // ---------------------------------------------------------
+        const fileName = (data.full_name || data.slug || "contact")
+          .replace(/\s+/g, "_") + ".vcf";
+        const file = new File([vcardData], fileName, { type: "text/vcard" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          showToast("👉 Choisissez « Contacts » dans le menu qui s'ouvre");
+          try {
+            await navigator.share({
+              files: [file],
+              title: data.full_name || "Contact",
+              text: `Contact : ${data.full_name || ""}`
+            });
+            return; // ✅ L'utilisateur choisit Contacts, Gmail, etc.
+          } catch (e) {
+            if (e.name === "AbortError") return; // annulé volontairement
+            // sinon on continue vers le fallback
+          }
+        }
+
+        // ---------------------------------------------------------
+        // 3) Fallback : téléchargement du .vcf
+        //    Un tap sur la notification ouvre Contacts
+        // ---------------------------------------------------------
+        const blob = new Blob([vcardData], { type: "text/x-vcard;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        showToast("📁 Fichier .vcf téléchargé — tapez dessus pour l'ajouter à vos contacts");
+
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
         }
       }
-
-      // 3. Repli si le partage direct n'est pas autorisé par le navigateur
-      const blob = new Blob([vcardData], { type: "text/x-vcard;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_self");
     }
 
     // Module d'écriture Web NFC (disponible sur le formulaire)
@@ -202,9 +271,9 @@
                 </div>
               ` : ''}
 
-              <!-- Bouton principal : Enregistrer le contact -->
+              <!-- Bouton principal : Ajouter aux contacts -->
               <button id="save-contact-btn" class="w-full ${palette.btn} text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition mt-5 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-address-card"></i> Enregistrer le contact
+                <i class="fa-solid fa-address-card"></i> Ajouter à mes contacts
               </button>
 
               <!-- Liste des numéros de téléphone -->

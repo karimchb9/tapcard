@@ -63,12 +63,12 @@
       });
     }
 
-    // Enregistrement direct via l'application native Contacts du smartphone
+    // Déclencheur direct vers l'application Contacts du smartphone
     async function saveContactDirect(data) {
       const phones = Array.isArray(data.phones) ? data.phones : (data.phone ? [{ type: "CELL", number: data.phone }] : []);
       let telEntries = phones.map(p => `TEL;TYPE=CELL:${p.number}`).join("\r\n");
 
-      const vcardContent = [
+      const vcardData = [
         "BEGIN:VCARD",
         "VERSION:3.0",
         `FN;CHARSET=UTF-8:${data.full_name || ''}`,
@@ -79,36 +79,37 @@
         "END:VCARD"
       ].filter(Boolean).join("\r\n");
 
-      const fileName = `${(data.slug || 'contact')}.vcf`;
-      const file = new File([vcardContent], fileName, { type: "text/vcard;charset=utf-8" });
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-      // 1. Partage natif système (Ouvre directement la feuille d'action Android / iOS)
+      // 1. Sur iPhone : Safari ouvre directement la vue "Nouveau Contact"
+      if (isIOS) {
+        const blob = new Blob([vcardData], { type: "text/vcard;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        window.location.href = url;
+        return;
+      }
+
+      // 2. Sur Android : Déclenchement du partage système vers Contacts
+      const file = new File([vcardData], `${data.slug || 'contact'}.vcf`, { type: "text/vcard;charset=utf-8" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
-            title: data.full_name || 'Contact',
-            text: `Fiche contact de ${data.full_name || ''}`
+            title: data.full_name || 'Contact'
           });
           return;
-        } catch (err) {
-          if (err.name === 'AbortError') return;
+        } catch (e) {
+          if (e.name === 'AbortError') return;
         }
       }
 
-      // 2. Repli direct : déclenchement MIME pour lancer l'application Contacts
-      const blob = new Blob([vcardContent], { type: "text/x-vcard;charset=utf-8" });
+      // 3. Repli si le partage direct n'est pas autorisé par le navigateur
+      const blob = new Blob([vcardData], { type: "text/x-vcard;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      const tempLink = document.createElement("a");
-      tempLink.href = url;
-      tempLink.setAttribute("download", fileName);
-      document.body.appendChild(tempLink);
-      tempLink.click();
-      document.body.removeChild(tempLink);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      window.open(url, "_self");
     }
 
-    // Module d'écriture Web NFC (réservé au formulaire de gestion)
+    // Module d'écriture Web NFC (disponible sur le formulaire)
     async function writeNfcTag(customUrl = null) {
       const targetUrl = customUrl || window.location.href;
       const statusEl = document.getElementById("nfc-live-status");
@@ -132,7 +133,7 @@
     }
 
     // ==========================================
-    // 1. VUE DU PROFIL PUBLIC (AFFICHAGE CARTE)
+    // 1. VUE DU PROFIL PUBLIC
     // ==========================================
     async function renderProfile(slug) {
       const root = document.getElementById("root");
@@ -173,7 +174,7 @@
         root.innerHTML = `
           <div class="w-full bg-white rounded-[36px] overflow-hidden border border-slate-200 shadow-xl">
             
-            <!-- Bannière supérieure (propre, sans aucune tache noire) -->
+            <!-- Bannière supérieure -->
             <div class="relative w-full h-44 bg-slate-100 overflow-visible">
               ${bannerImg 
                 ? `<img src="${bannerImg}" class="w-full h-full object-cover">` 
@@ -201,12 +202,12 @@
                 </div>
               ` : ''}
 
-              <!-- Bouton principal : Enregistrement direct dans les contacts -->
+              <!-- Bouton principal : Enregistrer le contact -->
               <button id="save-contact-btn" class="w-full ${palette.btn} text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition mt-5 flex items-center justify-center gap-2">
                 <i class="fa-solid fa-address-card"></i> Enregistrer le contact
               </button>
 
-              <!-- Liste des téléphones -->
+              <!-- Liste des numéros de téléphone -->
               ${phones.length > 0 ? `
                 <div class="space-y-2 mt-5 text-left">
                   <div class="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Téléphones</div>
@@ -315,7 +316,7 @@
             <p class="text-xs text-slate-500 mt-1">Personnalisez votre identité connectée et programmez votre carte NFC.</p>
           </div>
 
-          <!-- Section permanente Écriture NFC dans le formulaire -->
+          <!-- Module NFC permanent dans le formulaire -->
           <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 rounded-2xl mb-6">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-black uppercase text-emerald-900 tracking-wider"><i class="fa-solid fa-wifi rotate-90 mr-1 text-emerald-600"></i> Module d'encodage NFC</span>
@@ -334,7 +335,7 @@
 
             <div>
               <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Identifiant URL unique (slug)</label>
-              <input type="text" id="slug" value="${currentData.slug}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:border-blue-500" placeholder="ex: abdoulah-baha" required>
+              <input type="text" id="slug" value="${currentData.slug}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:border-blue-500" placeholder="ex: amine-bennani" required>
             </div>
 
             <!-- Import des deux images -->
@@ -360,17 +361,17 @@
 
             <div>
               <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Nom complet</label>
-              <input type="text" id="full_name" value="${currentData.full_name}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Abdoulah Baha" required>
+              <input type="text" id="full_name" value="${currentData.full_name}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Amine Bennani" required>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Poste / Fonction</label>
-                <input type="text" id="job_title" value="${currentData.job_title}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Propriétaire">
+                <input type="text" id="job_title" value="${currentData.job_title}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Directeur Commercial">
               </div>
               <div>
                 <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Entreprise</label>
-                <input type="text" id="company" value="${currentData.company}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: DEC">
+                <input type="text" id="company" value="${currentData.company}" class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="ex: Atlas Tech">
               </div>
             </div>
 

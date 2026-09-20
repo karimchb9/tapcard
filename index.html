@@ -27,11 +27,6 @@
   </footer>
 
   <script>
-    // ============================================================
-    // 1. DÉFINIR VOTRE MOT DE PASSE SECRET (modifiez-le si besoin)
-    // ============================================================
-    const ADMIN_PIN = "TAPCARD2026";
-
     // Configuration Supabase REST
     const API_URL = "https://diebuttlhhxgqomxvmcj.supabase.co/rest/v1/cards";
     const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZWJ1dHRsaGh4Z3FvbXh2bWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NTA5MTYsImV4cCI6MjEwNTQyNjkxNn0.0-jqP2GKpswYCFQD6dpPznXYUXoX3pk6fWYSkiuvo2w";
@@ -53,9 +48,6 @@
       other: { name: "Autre lien", icon: "fa-solid fa-link", color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200", prefix: "" }
     };
 
-    // ============================================================
-    // FONCTIONS UTILITAIRES
-    // ============================================================
     function getParam(key) {
       const p = new URLSearchParams(window.location.search);
       return p.get(key) || null;
@@ -116,52 +108,9 @@
       setTimeout(() => t.remove(), duration);
     }
 
-    // ============================================================
-    // 2. ÉCRAN DE SAISIE DU MOT DE PASSE
-    // ============================================================
-    function renderLoginScreen(onSuccessCallback) {
-      const root = document.getElementById("root");
-      document.getElementById("nav-actions").innerHTML = "";
-
-      root.innerHTML = `
-        <div class="bg-white p-8 rounded-[36px] shadow-sm border border-slate-200 w-full text-center">
-          <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-700 text-xl shadow-sm">
-            <i class="fa-solid fa-lock"></i>
-          </div>
-          <h2 class="text-xl font-black text-slate-900">Espace Administrateur</h2>
-          <p class="text-xs text-slate-500 mt-1 mb-6">Cet accès est strictement réservé à l'administrateur TAPCARD.</p>
-
-          <div id="login-error" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 p-2.5 rounded-xl mb-4 font-semibold"></div>
-
-          <form id="authForm" class="space-y-4">
-            <input type="password" id="adminPinInput"
-              class="w-full p-3.5 border border-slate-200 rounded-xl text-center text-base tracking-widest font-mono outline-none focus:border-blue-600"
-              placeholder="Entrez le mot de passe" autofocus required>
-            <button type="submit"
-              class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition text-sm">
-              Déverrouiller
-            </button>
-          </form>
-        </div>
-      `;
-
-      document.getElementById("authForm").onsubmit = (e) => {
-        e.preventDefault();
-        const entered = document.getElementById("adminPinInput").value.trim();
-        if (entered === ADMIN_PIN) {
-          sessionStorage.setItem("tapcard_auth", "true");
-          onSuccessCallback();
-        } else {
-          const errBox = document.getElementById("login-error");
-          errBox.textContent = "Mot de passe incorrect.";
-          errBox.classList.remove("hidden");
-        }
-      };
-    }
-
-    // ============================================================
-    // 3. ENREGISTREMENT DU CONTACT — avec photo
-    // ============================================================
+    // ==========================================
+    // ENREGISTREMENT DU CONTACT — avec photo
+    // ==========================================
     async function saveContactDirect(data) {
       const btn = document.getElementById("save-contact-btn");
       const originalHtml = btn ? btn.innerHTML : "";
@@ -171,13 +120,17 @@
       }
 
       try {
+        // Récupération des numéros
         const phones = Array.isArray(data.phones)
           ? data.phones
           : (data.phone ? [{ type: "CELL", number: data.phone }] : []);
 
+        // Échappement vCard
         const esc = (v = "") => String(v).replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
 
+        // ---------------------------------------------------------
         // Préparation de la PHOTO (avatar) pour le vCard
+        // ---------------------------------------------------------
         let photoLine = "";
         const avatarData = data.avatar || (data.links && data.links.avatar);
 
@@ -192,10 +145,14 @@
             else if (mime.includes("gif")) imgType = "GIF";
             else if (mime.includes("webp")) imgType = "WEBP";
 
+            // vCard 3.0 : PHOTO;ENCODING=b;TYPE=JPEG:<base64 pur>
             photoLine = `PHOTO;ENCODING=b;TYPE=${imgType}:${base64Data}`;
           }
         }
 
+        // ---------------------------------------------------------
+        // Construction du vCard
+        // ---------------------------------------------------------
         const telEntries = phones
           .map(p => `TEL;TYPE=CELL:${esc(p.number)}`)
           .join("\r\n");
@@ -217,7 +174,9 @@
           /iPad|iPhone|iPod/.test(ua) ||
           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-        // 1) iOS : data-URL vCard
+        // ---------------------------------------------------------
+        // 1) iOS : data-URL vCard → ouvre direct "Nouveau Contact"
+        // ---------------------------------------------------------
         if (isIOS) {
           const dataUrl = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcardData);
           const a = document.createElement("a");
@@ -228,7 +187,9 @@
           return;
         }
 
+        // ---------------------------------------------------------
         // 2) Android & Desktop : Web Share API
+        // ---------------------------------------------------------
         const fileName = (data.full_name || data.slug || "contact")
           .replace(/\s+/g, "_") + ".vcf";
         const file = new File([vcardData], fileName, { type: "text/vcard" });
@@ -247,7 +208,9 @@
           }
         }
 
+        // ---------------------------------------------------------
         // 3) Fallback : téléchargement .vcf
+        // ---------------------------------------------------------
         const blob = new Blob([vcardData], { type: "text/x-vcard;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -280,7 +243,9 @@
       try {
         if (statusEl) statusEl.innerHTML = `<span class="text-blue-600 font-semibold animate-pulse"><i class="fa-solid fa-spinner fa-spin"></i> Approchez votre carte NFC du dos de votre smartphone...</span>`;
         const ndef = new NDEFReader();
-        await ndef.write({ records: [{ recordType: "url", data: targetUrl }] });
+        await ndef.write({
+          records: [{ recordType: "url", data: targetUrl }]
+        });
         if (statusEl) statusEl.innerHTML = `<span class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check"></i> Carte NFC écrite avec succès !</span>`;
         alert("✅ Succès ! Votre carte NFC est programmée pour ouvrir :\n" + targetUrl);
       } catch (err) {
@@ -288,9 +253,9 @@
       }
     }
 
-    // ============================================================
-    // 4. VUE DU PROFIL PUBLIC
-    // ============================================================
+    // ==========================================
+    // 1. VUE DU PROFIL PUBLIC
+    // ==========================================
     async function renderProfile(slug) {
       const root = document.getElementById("root");
       root.innerHTML = `<div class="p-8 bg-white rounded-3xl shadow-sm text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-3"></i><br>Chargement de votre carte...</div>`;
@@ -329,10 +294,14 @@
 
         root.innerHTML = `
           <div class="w-full bg-white rounded-[36px] overflow-hidden border border-slate-200 shadow-xl">
+            
+            <!-- Bannière supérieure -->
             <div class="relative w-full h-44 bg-slate-100 overflow-visible">
               ${bannerImg 
                 ? `<img src="${bannerImg}" class="w-full h-full object-cover">` 
                 : `<div class="w-full h-full bg-gradient-to-r from-slate-700 to-slate-900"></div>`}
+              
+              <!-- Avatar circulaire superposé -->
               <div class="absolute -bottom-12 left-1/2 -translate-x-1/2 z-10">
                 <div class="w-24 h-24 rounded-full bg-white p-1 shadow-lg">
                   <div class="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-slate-100">
@@ -344,6 +313,7 @@
               </div>
             </div>
 
+            <!-- Informations du profil -->
             <div class="pt-16 pb-6 px-6 text-center">
               <h1 class="text-xl font-black text-slate-900 tracking-tight">${c.full_name || ''}</h1>
               <p class="text-sm font-semibold text-slate-500 mt-0.5">${c.job_title || ''}</p>
@@ -353,10 +323,12 @@
                 </div>
               ` : ''}
 
+              <!-- Bouton principal : Ajouter aux contacts -->
               <button id="save-contact-btn" class="w-full ${palette.btn} text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition mt-5 flex items-center justify-center gap-2">
                 <i class="fa-solid fa-address-card"></i> Ajouter à mes contacts
               </button>
 
+              <!-- Liste des numéros de téléphone -->
               ${phones.length > 0 ? `
                 <div class="space-y-2 mt-5 text-left">
                   <div class="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Téléphones</div>
@@ -366,7 +338,9 @@
                     const isTelegram = typeLower.includes("telegram");
                     const cleanNumber = (p.number || "").replace(/[^\d]/g, "");
 
-                    let href, icon, iconColor;
+                    let href;
+                    let icon;
+                    let iconColor;
                     let bgClass = "bg-slate-50 hover:bg-slate-100 border-slate-100";
                     let externalHint = false;
 
@@ -408,6 +382,7 @@
                 </div>
               ` : ''}
 
+              <!-- Liste des réseaux sociaux et liens -->
               ${dataLinks.length > 0 ? `
                 <div class="space-y-2 mt-5 text-left">
                   <div class="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Liens & Réseaux</div>
@@ -434,6 +409,7 @@
                   }).join('')}
                 </div>
               ` : ''}
+
             </div>
           </div>
         `;
@@ -445,15 +421,21 @@
       }
     }
 
-    // ============================================================
-    // 5. VUE FORMULAIRE (CRÉATION ET MODIFICATION)
-    // ============================================================
+    // ====================================================
+    // 2. VUE FORMULAIRE (CRÉATION ET MODIFICATION)
+    // ====================================================
     async function renderForm(editSlug = null) {
       const root = document.getElementById("root");
       let currentData = { 
-        slug: "", full_name: "", job_title: "", company: "",
-        accent_color: "blue", banner: "", avatar: "",
-        phones: [{ type: "WhatsApp", number: "" }], custom_links: []
+        slug: "", 
+        full_name: "", 
+        job_title: "", 
+        company: "", 
+        accent_color: "blue",
+        banner: "",
+        avatar: "",
+        phones: [{ type: "WhatsApp", number: "" }],
+        custom_links: []
       };
 
       if (editSlug) {
@@ -482,11 +464,13 @@
 
       root.innerHTML = `
         <div class="bg-white p-6 sm:p-8 rounded-[36px] shadow-sm border border-slate-200 w-full mb-8">
+          
           <div class="mb-6">
             <h2 class="text-xl font-black text-slate-900 tracking-tight">${editSlug ? 'Modifier votre profil digital' : 'Créer votre profil digital'}</h2>
             <p class="text-xs text-slate-500 mt-1">Personnalisez votre identité connectée et programmez votre carte NFC.</p>
           </div>
 
+          <!-- Module NFC -->
           <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 rounded-2xl mb-6">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-black uppercase text-emerald-900 tracking-wider"><i class="fa-solid fa-wifi rotate-90 mr-1 text-emerald-600"></i> Module d'encodage NFC</span>
@@ -502,13 +486,16 @@
           <div id="status-box"></div>
 
           <form id="mainCardForm" class="space-y-5">
+
             <div>
               <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Identifiant URL unique (slug)</label>
               <input type="text" id="slug" value="${currentData.slug}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:border-blue-500" placeholder="ex: amine-bennani" required>
             </div>
 
+            <!-- Import des deux images -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
               <span class="text-xs font-black text-slate-500 uppercase tracking-wider block">Images</span>
+              
               <div>
                 <label class="text-xs font-semibold text-slate-600 block mb-1">1. Image de couverture (Bannière du haut)</label>
                 <input type="file" id="banner-input" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
@@ -516,6 +503,7 @@
                   <img src="${currentData.banner}" class="w-full h-full object-cover">
                 </div>
               </div>
+
               <div>
                 <label class="text-xs font-semibold text-slate-600 block mb-1">2. Photo de profil ou Logo (Cercle) — <span class="text-emerald-600">incluse dans le contact</span></label>
                 <input type="file" id="avatar-input" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
@@ -541,6 +529,7 @@
               </div>
             </div>
 
+            <!-- Numéros de téléphone dynamiques -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Numéros de téléphone</span>
@@ -552,6 +541,7 @@
               <div id="phones-container" class="space-y-2"></div>
             </div>
 
+            <!-- Liens et réseaux sociaux dynamiques -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Réseaux sociaux & Liens</span>
@@ -562,6 +552,7 @@
               <div id="links-container" class="space-y-2"></div>
             </div>
 
+            <!-- Couleur d'accent -->
             <div>
               <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">Couleur d'accent</label>
               <div class="flex items-center gap-3" id="palette-selector">
@@ -595,6 +586,7 @@
       const bannerInput = document.getElementById("banner-input");
       const avatarInput = document.getElementById("avatar-input");
 
+      // Bannière : compression large (1200px) pour garder la qualité visuelle
       bannerInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -605,6 +597,7 @@
         }
       };
 
+      // Avatar : compression agressive (400px) pour un vCard léger
       avatarInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -724,37 +717,16 @@
       };
     }
 
-    // ============================================================
-    // 6. ROUTAGE AVEC CONTRÔLE D'ACCÈS
-    // ============================================================
-    const path = window.location.pathname;
+    // Routage
     const cSlug = getParam("c");
     const editSlug = getParam("edit");
 
-    // Déterminer si on est sur la route /edit (ou ?edit=...)
-    const isEditRoute = path.startsWith("/edit") || !!editSlug;
-
-    // 1) Profil public : toujours accessible
     if (cSlug) {
       renderProfile(cSlug);
-    }
-    // 2) Route /edit ou ?edit=... : protégée
-    else if (isEditRoute) {
-      const isAuth = sessionStorage.getItem("tapcard_auth") === "true";
-      if (isAuth) {
-        renderForm(editSlug || null);
-      } else {
-        renderLoginScreen(() => renderForm(editSlug || null));
-      }
-    }
-    // 3) Accueil (/) : protégé
-    else {
-      const isAuth = sessionStorage.getItem("tapcard_auth") === "true";
-      if (isAuth) {
-        renderForm();
-      } else {
-        renderLoginScreen(() => renderForm());
-      }
+    } else if (editSlug) {
+      renderForm(editSlug);
+    } else {
+      renderForm();
     }
   </script>
 </body>

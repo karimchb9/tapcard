@@ -63,8 +63,8 @@
       });
     }
 
-    // Ouverture directe de la fiche contact du smartphone
-    function saveContactDirect(data) {
+    // Enregistrement direct via l'application native Contacts du smartphone
+    async function saveContactDirect(data) {
       const phones = Array.isArray(data.phones) ? data.phones : (data.phone ? [{ type: "CELL", number: data.phone }] : []);
       let telEntries = phones.map(p => `TEL;TYPE=CELL:${p.number}`).join("\r\n");
 
@@ -79,11 +79,36 @@
         "END:VCARD"
       ].filter(Boolean).join("\r\n");
 
-      const uri = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcardContent);
-      window.location.href = uri;
+      const fileName = `${(data.slug || 'contact')}.vcf`;
+      const file = new File([vcardContent], fileName, { type: "text/vcard;charset=utf-8" });
+
+      // 1. Partage natif système (Ouvre directement la feuille d'action Android / iOS)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: data.full_name || 'Contact',
+            text: `Fiche contact de ${data.full_name || ''}`
+          });
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+        }
+      }
+
+      // 2. Repli direct : déclenchement MIME pour lancer l'application Contacts
+      const blob = new Blob([vcardContent], { type: "text/x-vcard;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const tempLink = document.createElement("a");
+      tempLink.href = url;
+      tempLink.setAttribute("download", fileName);
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     }
 
-    // Module d'écriture Web NFC (réservé au panneau de contrôle)
+    // Module d'écriture Web NFC (réservé au formulaire de gestion)
     async function writeNfcTag(customUrl = null) {
       const targetUrl = customUrl || window.location.href;
       const statusEl = document.getElementById("nfc-live-status");
@@ -107,7 +132,7 @@
     }
 
     // ==========================================
-    // 1. VUE DU PROFIL PUBLIC
+    // 1. VUE DU PROFIL PUBLIC (AFFICHAGE CARTE)
     // ==========================================
     async function renderProfile(slug) {
       const root = document.getElementById("root");
@@ -148,13 +173,13 @@
         root.innerHTML = `
           <div class="w-full bg-white rounded-[36px] overflow-hidden border border-slate-200 shadow-xl">
             
-            <!-- Bannière supérieure (Sans aucune encoche noire) -->
+            <!-- Bannière supérieure (propre, sans aucune tache noire) -->
             <div class="relative w-full h-44 bg-slate-100 overflow-visible">
               ${bannerImg 
                 ? `<img src="${bannerImg}" class="w-full h-full object-cover">` 
                 : `<div class="w-full h-full bg-gradient-to-r from-slate-700 to-slate-900"></div>`}
               
-              <!-- Avatar circulaire parfaitement positionné à cheval sur la bannière -->
+              <!-- Avatar circulaire superposé au centre -->
               <div class="absolute -bottom-12 left-1/2 -translate-x-1/2 z-10">
                 <div class="w-24 h-24 rounded-full bg-white p-1 shadow-lg">
                   <div class="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-slate-100">
@@ -166,7 +191,7 @@
               </div>
             </div>
 
-            <!-- Contenu de la fiche -->
+            <!-- Informations du profil -->
             <div class="pt-16 pb-6 px-6 text-center">
               <h1 class="text-xl font-black text-slate-900 tracking-tight">${c.full_name || ''}</h1>
               <p class="text-sm font-semibold text-slate-500 mt-0.5">${c.job_title || ''}</p>

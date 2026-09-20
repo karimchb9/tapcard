@@ -9,7 +9,6 @@
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 font-sans antialiased text-slate-800">
 
-  <!-- En-tête -->
   <header class="w-full max-w-md flex justify-between items-center py-4 mb-2">
     <a href="/" class="flex items-center gap-2">
       <span class="text-2xl font-black tracking-tight text-slate-900">TAP<span class="text-blue-600">CARD</span></span>
@@ -19,8 +18,7 @@
   </header>
 
   <main id="root" class="w-full max-w-md flex flex-col items-center">
-    <!-- Contenu dynamique -->
-  </main>
+    </main>
 
   <footer class="mt-8 text-xs text-slate-400 text-center">
     Propulsé par TAPCARD • Solution NFC Universelle
@@ -31,7 +29,7 @@
     const API_URL = "https://diebuttlhhxgqomxvmcj.supabase.co/rest/v1/cards";
     const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZWJ1dHRsaGh4Z3FvbXh2bWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NTA5MTYsImV4cCI6MjEwNTQyNjkxNn0.0-jqP2GKpswYCFQD6dpPznXYUXoX3pk6fWYSkiuvo2w";
 
-    // Mot de passe secret Administrateur
+    // Mot de passe réservé exclusivement à vous
     const ADMIN_PIN = "TAPCARD2026";
 
     const PALETTES = {
@@ -99,7 +97,9 @@
       setTimeout(() => t.remove(), duration);
     }
 
-    // Enregistrement direct du contact
+    // ==========================================
+    // ENREGISTREMENT DU CONTACT
+    // ==========================================
     async function saveContactDirect(data) {
       const btn = document.getElementById("save-contact-btn");
       const originalHtml = btn ? btn.innerHTML : "";
@@ -229,9 +229,6 @@
     // ==========================================
     async function renderProfile(slug) {
       const root = document.getElementById("root");
-      const navActions = document.getElementById("nav-actions");
-      if (navActions) navActions.innerHTML = "";
-
       root.innerHTML = `<div class="p-8 bg-white rounded-3xl shadow-sm text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-3"></i><br>Chargement de votre carte...</div>`;
 
       try {
@@ -258,6 +255,9 @@
         const colorKey = c.accent_color || "blue";
         const palette = PALETTES[colorKey] || PALETTES.blue;
         const initial = c.full_name ? c.full_name.trim().charAt(0).toUpperCase() : 'T';
+
+        // Nettoyage de l'en-tête : suppression du bouton Modifier sur la vue publique
+        document.getElementById("nav-actions").innerHTML = "";
 
         root.innerHTML = `
           <div class="w-full bg-white rounded-[36px] overflow-hidden border border-slate-200 shadow-xl">
@@ -387,8 +387,7 @@
     // ====================================================
     function renderLoginScreen(onSuccessCallback) {
       const root = document.getElementById("root");
-      const navActions = document.getElementById("nav-actions");
-      if (navActions) navActions.innerHTML = "";
+      document.getElementById("nav-actions").innerHTML = "";
 
       root.innerHTML = `
         <div class="bg-white p-8 rounded-[36px] shadow-sm border border-slate-200 w-full text-center">
@@ -440,18 +439,15 @@
         custom_links: []
       };
 
-      const navActions = document.getElementById("nav-actions");
-      if (navActions) {
-        navActions.innerHTML = `
-          <button id="btn-logout" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-full text-red-600 font-semibold hover:bg-red-50 shadow-sm">
-            <i class="fa-solid fa-right-from-bracket mr-1"></i> Quitter
-          </button>
-        `;
-        document.getElementById("btn-logout").onclick = () => {
-          sessionStorage.removeItem("tapcard_auth");
-          window.location.reload();
-        };
-      }
+      document.getElementById("nav-actions").innerHTML = `
+        <button id="btn-logout" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-full text-red-600 font-semibold hover:bg-red-50 shadow-sm">
+          <i class="fa-solid fa-right-from-bracket mr-1"></i> Quitter
+        </button>
+      `;
+      document.getElementById("btn-logout").onclick = () => {
+        sessionStorage.removeItem("tapcard_auth");
+        window.location.reload();
+      };
 
       if (editSlug) {
         root.innerHTML = `<div class="p-8 bg-white rounded-3xl shadow-sm text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-3"></i><br>Chargement des informations...</div>`;
@@ -485,7 +481,6 @@
             <p class="text-xs text-slate-500 mt-1">Personnalisez votre identité connectée et programmez votre carte NFC.</p>
           </div>
 
-          <!-- Module NFC -->
           <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 rounded-2xl mb-6">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-black uppercase text-emerald-900 tracking-wider"><i class="fa-solid fa-wifi rotate-90 mr-1 text-emerald-600"></i> Module d'encodage NFC</span>
@@ -507,7 +502,6 @@
               <input type="text" id="slug" value="${currentData.slug}" ${editSlug ? 'readonly class="bg-slate-100 cursor-not-allowed"' : ''} class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:border-blue-500" placeholder="ex: amine-bennani" required>
             </div>
 
-            <!-- Import des deux images -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
               <span class="text-xs font-black text-slate-500 uppercase tracking-wider block">Images</span>
               
@@ -544,7 +538,6 @@
               </div>
             </div>
 
-            <!-- Numéros de téléphone dynamiques -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Numéros de téléphone</span>
@@ -556,7 +549,6 @@
               <div id="phones-container" class="space-y-2"></div>
             </div>
 
-            <!-- Liens et réseaux sociaux dynamiques -->
             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-black text-slate-600 uppercase tracking-wider">Réseaux sociaux & Liens</span>
@@ -567,7 +559,6 @@
               <div id="links-container" class="space-y-2"></div>
             </div>
 
-            <!-- Couleur d'accent -->
             <div>
               <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">Couleur d'accent</label>
               <div class="flex items-center gap-3" id="palette-selector">
@@ -737,8 +728,10 @@
     const editSlug = getParam("edit");
 
     if (cSlug) {
+      // Vue publique : ouverte à tous, sans mot de passe ni bouton modifier
       renderProfile(cSlug);
     } else {
+      // Accueil ou modification : vérification du mot de passe
       const isAuth = sessionStorage.getItem("tapcard_auth") === "true";
       if (isAuth) {
         renderForm(editSlug);

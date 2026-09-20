@@ -280,20 +280,55 @@
               ${phones.length > 0 ? `
                 <div class="space-y-2 mt-5 text-left">
                   <div class="text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">Téléphones</div>
-                  ${phones.map(p => `
-                    <a href="tel:${p.number}" class="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-100 transition">
-                      <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-slate-600 shadow-sm border border-slate-100">
-                          <i class="fa-solid ${p.type && p.type.toLowerCase().includes('whatsapp') ? 'fa-brands fa-whatsapp text-emerald-600' : 'fa-phone'}"></i>
+                  ${phones.map(p => {
+                    const typeLower = (p.type || "").toLowerCase();
+                    const isWhatsApp = typeLower.includes("whatsapp") || typeLower === "wa";
+                    const isTelegram = typeLower.includes("telegram");
+
+                    // Nettoyage : on ne garde que les chiffres pour wa.me / t.me
+                    const cleanNumber = (p.number || "").replace(/[^\d]/g, "");
+
+                    let href;
+                    let icon;
+                    let iconColor;
+                    let bgClass = "bg-slate-50 hover:bg-slate-100 border-slate-100";
+                    let externalHint = false;
+
+                    if (isWhatsApp) {
+                      const waMessage = encodeURIComponent(`Bonjour ${c.full_name || ''}, je vous contacte via votre carte TAPCARD.`);
+                      href = `https://wa.me/${cleanNumber}?text=${waMessage}`;
+                      icon = "fa-brands fa-whatsapp";
+                      iconColor = "text-emerald-600";
+                      bgClass = "bg-emerald-50 hover:bg-emerald-100 border-emerald-100";
+                      externalHint = true;
+                    } else if (isTelegram) {
+                      href = `https://t.me/+${cleanNumber}`;
+                      icon = "fa-brands fa-telegram";
+                      iconColor = "text-sky-600";
+                      bgClass = "bg-sky-50 hover:bg-sky-100 border-sky-100";
+                      externalHint = true;
+                    } else {
+                      href = `tel:${p.number}`;
+                      icon = "fa-phone";
+                      iconColor = "text-slate-600";
+                    }
+
+                    return `
+                      <a href="${href}" ${externalHint ? 'target="_blank" rel="noopener"' : ''} 
+                         class="flex items-center justify-between p-3 ${bgClass} rounded-2xl border transition">
+                        <div class="flex items-center gap-3">
+                          <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center ${iconColor} shadow-sm border border-slate-100">
+                            <i class="fa-solid ${icon}"></i>
+                          </div>
+                          <div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase">${p.type || 'Numéro'}</div>
+                            <div class="text-sm font-semibold text-slate-800">${p.number}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div class="text-[10px] font-bold text-slate-400 uppercase">${p.type || 'Numéro'}</div>
-                          <div class="text-sm font-semibold text-slate-800">${p.number}</div>
-                        </div>
-                      </div>
-                      <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-300 mr-2"></i>
-                    </a>
-                  `).join('')}
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs ${iconColor} mr-2"></i>
+                      </a>
+                    `;
+                  }).join('')}
                 </div>
               ` : ''}
 
@@ -452,6 +487,7 @@
                   <i class="fa-solid fa-plus mr-1"></i> Ajouter un numéro
                 </button>
               </div>
+              <p class="text-[10px] text-slate-400 mb-2">💡 Astuce : saisissez « WhatsApp » ou « Telegram » comme type pour activer le lien direct. Numéro au format international recommandé (ex: +2126...).</p>
               <div id="phones-container" class="space-y-2"></div>
             </div>
 
@@ -525,7 +561,7 @@
         const div = document.createElement("div");
         div.className = "flex items-center gap-2 phone-row";
         div.innerHTML = `
-          <input type="text" value="${type}" class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Nom">
+          <input type="text" value="${type}" class="w-1/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="Type (WhatsApp, Téléphone…)">
           <input type="tel" value="${number}" class="w-2/3 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold" placeholder="+2126...">
           <button type="button" class="text-slate-400 hover:text-red-500 px-2 py-1" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash text-xs"></i></button>
         `;
